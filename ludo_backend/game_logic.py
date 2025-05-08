@@ -1,10 +1,10 @@
+# game_logic.py
 import random
 from enum import Enum
 from typing import List, Dict, Optional, Tuple
 import datetime
 
-
-# --- O'yin uchun konstantalar va Enumlar ---
+# --- O'yin uchun Enumlar ---
 class PieceColor(Enum):
     RED = "red"
     GREEN = "green"
@@ -13,77 +13,80 @@ class PieceColor(Enum):
 
 class PieceState(Enum):
     HOME = "home"       # Uyda (boshlang'ich joy)
-    ACTIVE = "active"   # O'yin maydonida
-    SAFE = "safe"       # Xavfsiz katakda
+    ACTIVE = "active"   # O'yin maydonida (xavfsiz bo'lmagan)
+    SAFE = "safe"       # Xavfsiz katakda yoki o'z uy yo'lida
     FINISHED = "finished" # Marra chizig'ini kesib o'tgan
 
-# --- O'yin Taxtasi Konfiguratsiyasi ---
-# Umumiy yo'l kataklari soni (masalan, 52 ta, uylar va boshlang'ichlardan tashqari)
-TOTAL_PATH_SQUARES = 52
-# Har bir rang uchun uy yo'li kataklari soni (marragacha)
-HOME_PATH_SQUARES = 6 # 5 ta katak + 1 marra
-
-# Boshlang'ich pozitsiyalar (umumiy yo'ldagi indekslar)
-START_POSITIONS = {
-    PieceColor.RED: 0,
-    PieceColor.GREEN: 13, # TOTAL_PATH_SQUARES / 4
-    PieceColor.YELLOW: 26, # TOTAL_PATH_SQUARES / 2
-    PieceColor.BLUE: 39   # TOTAL_PATH_SQUARES * 3 / 4
-}
-
-# Uyga kirishdan oldingi oxirgi umumiy yo'l kataklari
-# Bu katakdan keyin o'z uy yo'liga o'tadi
-PRE_HOME_ENTRANCE = {
-    # Har bir rang o'zining boshlang'ich pozitsiyasidan bitta oldingi katakdan keyin uyiga buriladi
-    # Agar boshlang'ich 0 bo'lsa, 51-katak uning oldidagi oxirgi umumiy katak
-    PieceColor.RED: (START_POSITIONS[PieceColor.RED] - 1 + TOTAL_PATH_SQUARES) % TOTAL_PATH_SQUARES, # 51
-    PieceColor.GREEN: (START_POSITIONS[PieceColor.GREEN] - 1 + TOTAL_PATH_SQUARES) % TOTAL_PATH_SQUARES, # 12
-    PieceColor.YELLOW: (START_POSITIONS[PieceColor.YELLOW] - 1 + TOTAL_PATH_SQUARES) % TOTAL_PATH_SQUARES, # 25
-    PieceColor.BLUE: (START_POSITIONS[PieceColor.BLUE] - 1 + TOTAL_PATH_SQUARES) % TOTAL_PATH_SQUARES, # 38
-}
-# TODO: Bu PRE_HOME_ENTRANCE logikasi to'g'rilanishi kerak. Odatda bu start_position - 1 bo'ladi.
-# Misol uchun, agar Red 0 dan boshlasa, uning uyiga kirish yo'li 51-katakdan keyin.
-# Agar Green 13 dan boshlasa, uning uyiga kirish yo'li 12-katakdan keyin.
-# Buni aniqlashtiramiz. Hozircha taxminiy.
-
-# Xavfsiz kataklar (umumiy yo'ldagi indekslar)
-# Odatda har bir rangning boshlang'ich katagi va boshqa strategik nuqtalar
-SAFE_SQUARES = [
-    START_POSITIONS[PieceColor.RED],
-    START_POSITIONS[PieceColor.GREEN],
-    START_POSITIONS[PieceColor.YELLOW],
-    START_POSITIONS[PieceColor.BLUE],
-    # Boshqa xavfsiz kataklar (masalan, 8, 21, 34, 47 klassik Ludoda)
-    (START_POSITIONS[PieceColor.RED] + 8) % TOTAL_PATH_SQUARES,
-    (START_POSITIONS[PieceColor.GREEN] + 8) % TOTAL_PATH_SQUARES,
-    (START_POSITIONS[PieceColor.YELLOW] + 8) % TOTAL_PATH_SQUARES,
-    (START_POSITIONS[PieceColor.BLUE] + 8) % TOTAL_PATH_SQUARES,
-]
-
-# Maksimal pozitsiya indeksi (umumiy yo'lda)
-MAX_PATH_POSITION = TOTAL_PATH_SQUARES - 1
-
-class MoveResult(Enum):
+class MoveResultType(Enum): # Bu enumni ishlatish/ishlatmaslik sizga bog'liq
     SUCCESS = "success"
-    SUCCESS_CAPTURED_OPPONENT = "success_captured_opponent" # Raqib urildi
-    SUCCESS_REACHED_FINISH = "success_reached_finish" # Marraga yetdi
-    FAILED_INVALID_MOVE = "failed_invalid_move"
-    FAILED_NO_PIECE = "failed_no_piece"
+    CAPTURED_OPPONENT = "captured_opponent"
+    REACHED_FINISH = "reached_finish"
+    NO_CHANGE = "no_change" # Yurish natijasida holat o'zgarmadi
 
+# --- O'yin Doskasi Konfiguratsiyasi (Sizning `kor` va `models.py` ga asosan) ---
+# BULARNI O'ZINGIZNING `kor` LUG'ATINGIZ VA `models.py` LOGIKASIGA QARAB TEKSHIRING VA TO'G'RILANG!
+
+HOME_BASE_IDS: Dict[PieceColor, List[int]] = { # Har bir rang uchun 4 ta uy katagi IDlari
+    PieceColor.RED: [1, 2, 3, 4],
+    PieceColor.GREEN: [5, 6, 7, 8],
+    PieceColor.YELLOW: [9, 10, 11, 12],
+    PieceColor.BLUE: [13, 14, 15, 16]
+}
+
+START_PATH_IDS: Dict[PieceColor, int] = { # Uydan chiqqandagi birinchi yo'l katagi IDsi
+    PieceColor.RED: 17,
+    PieceColor.GREEN: 30,
+    PieceColor.YELLOW: 43,
+    PieceColor.BLUE: 56
+}
+
+PRE_HOME_ENTRANCE_IDS: Dict[PieceColor, int] = { # Uy yo'liga kirishdan oldingi oxirgi umumiy yo'l katagi IDsi
+    PieceColor.RED: 67,
+    PieceColor.GREEN: 28,
+    PieceColor.YELLOW: 41,
+    PieceColor.BLUE: 54
+}
+
+HOME_LANE_IDS: Dict[PieceColor, List[int]] = { # Uy yo'li kataklari IDlari (marradan oldingi 5 ta katak)
+    PieceColor.RED:    [69, 70, 71, 72, 73],
+    PieceColor.GREEN:  [75, 76, 77, 78, 79],
+    PieceColor.YELLOW: [81, 82, 83, 84, 85],
+    PieceColor.BLUE:   [87, 88, 89, 90, 91]
+}
+
+FINISH_IDS: Dict[PieceColor, int] = { # Marra kataklari IDlari
+    PieceColor.RED: 74,
+    PieceColor.GREEN: 80,
+    PieceColor.YELLOW: 86,
+    PieceColor.BLUE: 92
+}
+
+SAFE_SQUARE_IDS: List[int] = [17, 25, 30, 38, 43, 51, 56, 64] # Xavfsiz kataklar (`models.py` dagi `stars`)
+
+MAIN_PATH_START_ID: int = 17
+MAIN_PATH_END_ID: int = 68 # 68 dan keyin yana 17 ga o'tadi
+
+SPECIAL_JUMPS: Dict[int, int] = { # models.py dan
+    22: 34,
+    35: 47,
+    48: 60,
+    61: 21
+}
 
 # --- O'yin Klasslari ---
-
 class Piece:
     def __init__(self, piece_id: int, color: PieceColor, player_id: int):
         self.id: int = piece_id # Har bir tosh uchun unikal ID (0-3)
         self.color: PieceColor = color
-        self.player_id: int = player_id # Bu tosh qaysi o'yinchiga tegishli
+        self.player_id: int = player_id
         self.state: PieceState = PieceState.HOME
-        self.position: Optional[int] = None # Maydondagi pozitsiyasi (indeks)
-        self.steps_taken: int = 0 # Uy yo'lida bosgan qadamlari
+        # piece.id ga qarab HOME_BASE_IDS dan boshlang'ich pozitsiyani olamiz
+        self.position: Optional[int] = HOME_BASE_IDS[self.color][self.id] # Boshlang'ich uy pozitsiyasi
+        # self.steps_taken: int = 0 # Bu endi kerak emas, chunki position ID o'zi yetarli
 
     def __repr__(self):
-        return f"Piece({self.id}, {self.color.value}, P:{self.player_id}, S:{self.state.value}, Pos:{self.position})"
+        return (f"Piece({self.id}, C:{self.color.value}, PUID:{self.player_id}, "
+                f"S:{self.state.value}, PosID:{self.position})")
 
     def to_dict(self):
         return {
@@ -92,20 +95,19 @@ class Piece:
             "player_id": self.player_id,
             "state": self.state.value,
             "position": self.position,
-            "steps_taken": self.steps_taken
         }
 
-class LudoPlayer: # Bu Pydantic PlayerInGame dan farqli, bu o'yin logikasi uchun
+class LudoPlayer:
     def __init__(self, user_id: int, first_name: str, color: PieceColor):
         self.user_id: int = user_id
         self.first_name: str = first_name
         self.color: PieceColor = color
         self.pieces: List[Piece] = [Piece(i, color, user_id) for i in range(4)]
-        self.has_finished_all_pieces: bool = False # Barcha toshlari marraga yetganmi
-        self.is_sleeping = False
+        self.has_finished_all_pieces: bool = False
+        self.is_sleeping: bool = False # O'yinchi "uxlab qolgan" holati
 
     def __repr__(self):
-        return f"LudoPlayer({self.user_id}, {self.first_name}, {self.color.value})"
+        return f"LudoPlayer({self.user_id}, {self.first_name}, {self.color.value}, Sleep:{self.is_sleeping})"
 
     def to_dict(self):
         return {
@@ -113,278 +115,212 @@ class LudoPlayer: # Bu Pydantic PlayerInGame dan farqli, bu o'yin logikasi uchun
             "first_name": self.first_name,
             "color": self.color.value,
             "pieces": [p.to_dict() for p in self.pieces],
-            "has_finished_all_pieces": self.has_finished_all_pieces
+            "has_finished_all_pieces": self.has_finished_all_pieces,
+            "is_sleeping": self.is_sleeping # Frontend uchun
         }
 
 class LudoGame:
     def __init__(self, game_id: str, host_id: int):
         self.game_id: str = game_id
-        self.host_id: int = host_id
+        self.host_id: int = host_id # O'yinni yaratgan foydalanuvchi IDsi
         self.players: Dict[int, LudoPlayer] = {} # user_id: LudoPlayer
         self.player_order: List[int] = [] # O'yinchilarning navbat tartibi (user_id lar)
         self.current_player_index: int = 0
         self.current_dice_roll: Optional[int] = None
-        self.game_status: str = "registering" # "registering", "playing", "finished"
+        self.game_status: str = "registering" # "registering", "playing", "finished", "cancelled"
         self.winner_user_id: Optional[int] = None
-        # Ranglarni o'yinchilarga taqsimlash uchun mavjud ranglar
-        self.available_colors: List[PieceColor] = list(PieceColor) 
-        random.shuffle(self.available_colors) # Ranglarni aralashtirish
+        self.available_colors: List[PieceColor] = list(PieceColor)
+        random.shuffle(self.available_colors)
 
-        self.max_players: int = 4 # YANGI
-        self.created_at: datetime.datetime = datetime.datetime.now(datetime.timezone.utc) # YANGI
-        self.updated_at: datetime.datetime = datetime.datetime.now(datetime.timezone.utc) # YANGI
+        self.max_players: int = 4
+        self.min_players_to_start: int = 2 # O'yinni boshlash uchun minimal o'yinchilar
+        self.created_at: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
+        self.updated_at: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
+        self.last_action_time: datetime.datetime = datetime.datetime.now(datetime.timezone.utc) # Navbat taymeri uchun
 
-        # O'yin taxtasi va yo'llar (keyingi bosqichda)
-        # self.board = Board() 
+    def _update_timestamp(self):
+        self.updated_at = datetime.datetime.now(datetime.timezone.utc)
+        self.last_action_time = self.updated_at # Har qanday muhim harakatda yangilanadi
 
     def add_player(self, user_id: int, first_name: str) -> bool:
         if user_id in self.players:
-            print(f"O'yinchi {user_id} allaqachon o'yinda mavjud.")
+            print(f"O'yinchi {user_id} allaqachon o'yinda.")
+            return True # Yoki False, agar qayta qo'shilishni cheklamoqchi bo'lsangiz
+        if len(self.players) >= self.max_players:
+            print("O'yin to'lgan, yangi o'yinchi qo'shib bo'lmaydi.")
             return False
         if not self.available_colors:
-            print("Bo'sh rang qolmadi.")
+            print("Bo'sh rang qolmadi.") # Bu holat bo'lmasligi kerak, agar max_players=4 va 4 ta rang bo'lsa
             return False
-        
+
         player_color = self.available_colors.pop(0)
         new_player = LudoPlayer(user_id, first_name, player_color)
         self.players[user_id] = new_player
-        self.player_order.append(user_id) # Navbatga qo'shish
+        if user_id not in self.player_order: # Agar qayta qo'shilish bo'lsa, tartibga qo'shmaymiz
+            self.player_order.append(user_id)
+        
         print(f"O'yinchi {first_name} ({user_id}) {player_color.value} rangi bilan qo'shildi.")
-        self.updated_at = datetime.datetime.now(datetime.timezone.utc)  
+        self._update_timestamp()
         return True
 
     def start_game(self) -> bool:
-        if len(self.players) < 2: # Minimal o'yinchilar soni
-            print("O'yinni boshlash uchun yetarli o'yinchi yo'q.")
+        if len(self.players) < self.min_players_to_start:
+            print(f"O'yinni boshlash uchun yetarli o'yinchi yo'q (kerak: {self.min_players_to_start}, mavjud: {len(self.players)}).")
             return False
         if self.game_status == "playing":
             print("O'yin allaqachon boshlangan.")
-            return False
-            
+            return False # Yoki True, agar bu chaqiruv zararsiz bo'lsa
+
         self.game_status = "playing"
-        # Navbatni aralashtirish (ixtiyoriy) yoki birinchi qo'shilgan/xostdan boshlash
+        # Navbatni aralashtirish ixtiyoriy, hozircha qo'shilish tartibida
         # random.shuffle(self.player_order)
         self.current_player_index = 0 # Birinchi o'yinchidan boshlaymiz
-        print(f"O'yin {self.game_id} boshlandi. Navbat {self.get_current_player().user_id} da.")
-        self.updated_at = datetime.datetime.now(datetime.timezone.utc)
+        print(f"O'yin {self.game_id} boshlandi. Navbat {self.get_current_player().user_id if self.get_current_player() else 'N/A'} da.")
+        self._update_timestamp()
         return True
 
     def get_current_player(self) -> Optional[LudoPlayer]:
-        if not self.player_order or self.game_status != "playing":
+        if not self.player_order or self.game_status != "playing" or self.current_player_index >= len(self.player_order):
             return None
         current_user_id = self.player_order[self.current_player_index]
         return self.players.get(current_user_id)
 
     def roll_dice(self) -> Optional[int]:
         current_player = self.get_current_player()
-        if not current_player:
-            print("Hozir hech kimning navbati emas yoki o'yin boshlanmagan.")
+        if not current_player or current_player.is_sleeping: # Uyqudagi o'yinchi zar tashlay olmaydi
+            print("Hozirgi o'yinchi zar tashlay olmaydi (navbati emas, topilmadi yoki uxlayapti).")
             return None
-        
+
         self.current_dice_roll = random.randint(1, 6)
         print(f"O'yinchi {current_player.user_id} zar tashladi: {self.current_dice_roll}")
-        # Agar 6 tushmasa va yurish imkoni bo'lmasa, navbatni o'tkazish kerak (keyinroq)
-        self.updated_at = datetime.datetime.now(datetime.timezone.utc)
+        self._update_timestamp()
         return self.current_dice_roll
 
-    def next_turn(self):
-        if not self.player_order or self.game_status != "playing":
-            return
-        self.current_player_index = (self.current_player_index + 1) % len(self.player_order)
-        self.current_dice_roll = None # Yangi navbatda zar qiymati nolga tenglashadi
-        print(f"Navbat o'tdi. Endi {self.get_current_player().user_id} ning navbati.")
-        self.updated_at = datetime.datetime.now(datetime.timezone.utc)
-
-    # --- Keyingi qismlarda qo'shiladigan metodlar ---
-    # def get_movable_pieces(self, player_id: int, dice_roll: int) -> List[Piece]:
-    #     pass
-    # def move_piece(self, player_id: int, piece_id: int, dice_roll: int) -> bool:
-    #     pass
-    # def check_winner(self) -> Optional[int]:
-    #     pass
-
-    def get_game_state(self) -> dict:
-        """O'yinning joriy holatini dict ko'rinishida qaytaradi (klientga yuborish uchun)"""
-        return {
-            "game_id": self.game_id,
-            "status": self.game_status,
-            "players": {uid: p.to_dict() for uid, p in self.players.items()},
-            "player_order": self.player_order,
-            "current_player_user_id": self.get_current_player().user_id if self.get_current_player() else None,
-            "current_dice_roll": self.current_dice_roll,
-            "winner_user_id": self.winner_user_id
-        }
-    
-
-    def _calculate_new_position(self, piece: Piece, dice_roll: int) -> Tuple[Optional[int], PieceState, int]:
+    def _calculate_new_position(self, piece: Piece, dice_roll: int) -> Tuple[Optional[int], PieceState]:
         """
-        Berilgan tosh uchun zar natijasiga ko'ra yangi pozitsiya, holat va uy yo'lidagi qadamlarni hisoblaydi.
-        Returns: (new_absolute_position_on_main_path, new_state, new_steps_on_home_path)
-        new_absolute_position_on_main_path: None bo'lishi mumkin, agar HOME, HOME_PATH yoki FINISHED bo'lsa.
-        Agar yurish imkonsiz bo'lsa (masalan, uy yo'lida oshib ketsa), asl holatini qaytaradi.
+        Berilgan tosh uchun zar natijasiga ko'ra yangi pozitsiya IDsi va holatini hisoblaydi.
+        Returns: (new_position_id, new_state)
+        Agar yurish imkonsiz bo'lsa (masalan, uy yo'lida oshib ketsa), asl (position_id, state) qaytariladi.
         """
-        current_main_path_pos = piece.position
+        current_pos_id = piece.position
         current_state = piece.state
-        current_steps_on_home_path = piece.steps_taken
         color = piece.color
 
-        # 1. Tosh Uyda (HOME)
+        # 1. Tosh Marraga Yetgan (FINISHED)
+        if current_state == PieceState.FINISHED:
+            return current_pos_id, current_state
+
+        # 2. Tosh Uyda (HOME)
         if current_state == PieceState.HOME:
             if dice_roll == 6:
-                # Uydan chiqish. Boshlang'ich pozitsiya xavfsiz bo'lishi mumkin.
-                start_pos = START_POSITIONS[color]
-                new_state = PieceState.SAFE if start_pos in SAFE_SQUARES else PieceState.ACTIVE
-                return start_pos, new_state, 0
+                new_pos_id = START_PATH_IDS[color]
+                new_state = PieceState.SAFE if new_pos_id in SAFE_SQUARE_IDS else PieceState.ACTIVE
+                return new_pos_id, new_state
             else:
-                # Uyda qoladi, o'zgarish yo'q.
-                return current_main_path_pos, current_state, current_steps_on_home_path
+                return current_pos_id, current_state # Uyda qoladi
 
-        # 2. Tosh Marraga Yetgan (FINISHED)
-        if current_state == PieceState.FINISHED:
-            # O'zgarish yo'q.
-            return current_main_path_pos, current_state, current_steps_on_home_path
-
-        # 3. Tosh allaqachon Uy Yo'lida (lekin FINISHED emas)
-        # Bu holatda piece.position == None va 0 < piece.steps_taken < HOME_PATH_SQUARES
-        if current_main_path_pos is None and current_steps_on_home_path > 0:
-            potential_total_steps_on_home = current_steps_on_home_path + dice_roll
+        # 3. Tosh Yo'lda (ACTIVE yoki SAFE, shu jumladan o'zining uy yo'lida)
+        temp_pos_id = current_pos_id
+        
+        # Tosh allaqachon uy yo'lidami?
+        is_on_home_lane = temp_pos_id in HOME_LANE_IDS[color]
+        
+        for i in range(1, dice_roll + 1): # Zar qadamlarini birma-bir bosamiz
+            if is_on_home_lane:
+                current_lane_idx = HOME_LANE_IDS[color].index(temp_pos_id)
+                if current_lane_idx + 1 < len(HOME_LANE_IDS[color]): # Uy yo'lida oldinga
+                    temp_pos_id = HOME_LANE_IDS[color][current_lane_idx + 1]
+                else: # Uy yo'lining oxirgi katagida, keyingisi marra
+                    # Bu i-qadamda marraga yetdi
+                    if i == dice_roll: # Agar zar aynan shu qadamda tugasa
+                        temp_pos_id = FINISH_IDS[color]
+                        break # For loopdan chiqish
+                    else: # Zar ortiqcha, marradan oshib ketadi
+                        return current_pos_id, current_state # Joyida qoladi, yurish imkonsiz
             
-            if potential_total_steps_on_home == HOME_PATH_SQUARES:
-                # Marraga yetdi
-                return None, PieceState.FINISHED, HOME_PATH_SQUARES
-            elif potential_total_steps_on_home < HOME_PATH_SQUARES:
-                # Uy yo'lida oldinga yurdi
-                return None, PieceState.ACTIVE, potential_total_steps_on_home # Uy yo'li odatda xavfsiz, lekin state ACTIVE
-            else:
-                # Uy yo'lida oshib ketdi, joyida qoladi. Bu valid yurish emas.
-                return current_main_path_pos, current_state, current_steps_on_home_path
-
-        # 4. Tosh Umumiy Yo'lda (ACTIVE yoki SAFE)
-        # Bu holatda piece.position is not None
-        if current_main_path_pos is not None:
-            entry_point_to_home_lane = PRE_HOME_ENTRANCE[color]
+            # Umumiy yo'lda yoki uy yo'liga kirish arafasida
+            elif temp_pos_id == PRE_HOME_ENTRANCE_IDS[color]:
+                # Bu qadamda o'z uy yo'liga kiradi
+                temp_pos_id = HOME_LANE_IDS[color][0]
+                is_on_home_lane = True # Keyingi qadamlar uy yo'lida bo'ladi
             
-            temp_main_path_pos = current_main_path_pos
+            elif temp_pos_id == MAIN_PATH_END_ID: # Umumiy yo'lning oxiri
+                temp_pos_id = MAIN_PATH_START_ID # Umumiy yo'lning boshiga o'tadi
             
-            for i in range(1, dice_roll + 1): # 1 dan dice_roll gacha qadam bosamiz
-                # Agar joriy qadamda tosh uyga kirish nuqtasida bo'lsa
-                # VA bu oxirgi qadam bo'lmasa (ya'ni, uyga kirish uchun kamida bitta qadam kerak)
-                if temp_main_path_pos == entry_point_to_home_lane:
-                    steps_taken_on_main_path_to_reach_entry = i -1 # Kirish nuqtasigacha bosilgan qadamlar
-                    # Kirish nuqtasiga QADAM BOSISH uchun 1 qadam sarflanadi,
-                    # bu uy yo'lidagi birinchi qadam hisoblanadi.
-                    remaining_dice_for_home_path = dice_roll - (steps_taken_on_main_path_to_reach_entry + 1)
-                    
-                    # Uy yo'lidagi birinchi qadam + qolgan zar
-                    potential_total_steps_on_home = 1 + remaining_dice_for_home_path
-                    
-                    if potential_total_steps_on_home == HOME_PATH_SQUARES:
-                        return None, PieceState.FINISHED, HOME_PATH_SQUARES
-                    elif potential_total_steps_on_home < HOME_PATH_SQUARES:
-                        return None, PieceState.ACTIVE, potential_total_steps_on_home
-                    else: # Uy yo'lida oshib ketdi (uyga kirishga urinib)
-                        # Bu yurish valid emas, tosh joyida qoladi.
-                        return piece.position, piece.state, piece.steps_taken
+            else: # Umumiy yo'lda oddiy oldinga yurish
+                temp_pos_id += 1
+            
+            # Maxsus sakrashlar (agar mavjud bo'lsa va umumiy yo'lda bo'lsa)
+            if not is_on_home_lane and temp_pos_id in SPECIAL_JUMPS:
+                temp_pos_id = SPECIAL_JUMPS[temp_pos_id]
 
-                # Umumiy yo'lda keyingi katakka o'tish
-                temp_main_path_pos = (temp_main_path_pos + 1) % TOTAL_PATH_SQUARES
+        # Yakuniy holatni aniqlash
+        final_pos_id = temp_pos_id
+        new_state: PieceState
 
-            # Agar butun zar umumiy yo'lda sarflangan bo'lsa (uyga kirmagan bo'lsa)
-            # temp_main_path_pos endi yangi pozitsiyani ko'rsatadi
-            new_state = PieceState.SAFE if temp_main_path_pos in SAFE_SQUARES else PieceState.ACTIVE
-            return temp_main_path_pos, new_state, 0 # Uy yo'lida emas, shuning uchun 0 qadam
-
-        # Agar yuqoridagi shartlarning hech biri bajarilmasa (bu bo'lmasligi kerak)
-        # print(f"OGOHLANTIRISH: Piece {piece.id} ({color}) uchun _calculate_new_position da kutilmagan holat.")
-        return piece.position, piece.state, piece.steps_taken
+        if final_pos_id == FINISH_IDS[color]:
+            new_state = PieceState.FINISHED
+        elif final_pos_id in HOME_LANE_IDS[color] or final_pos_id in SAFE_SQUARE_IDS:
+            new_state = PieceState.SAFE
+        elif final_pos_id in HOME_BASE_IDS[color]: # Bu holat bo'lmasligi kerak, agar HOME dan chiqqan bo'lsa
+             new_state = PieceState.HOME
+        else: # Umumiy yo'ldagi oddiy (xavfsiz bo'lmagan) katak
+            new_state = PieceState.ACTIVE
+        
+        return final_pos_id, new_state
 
 
-    def get_valid_moves(self, player_id: int) -> Dict[int, Tuple[Optional[int], str, int]]:
+    def get_valid_moves(self, player_id: int) -> Dict[int, Tuple[Optional[int], str]]:
         """
         Joriy o'yinchi va zar qiymati uchun mumkin bo'lgan barcha valid yurishlarni qaytaradi.
-        Returns: Dict[piece_id, Tuple[new_main_path_pos, new_state_value, new_steps_on_home_path]]
+        Returns: Dict[piece_id, Tuple[new_position_id, new_state_value]]
         """
         player = self.players.get(player_id)
         dice_roll = self.current_dice_roll
 
-        if not player or dice_roll is None:
-            # print(f"Debug (get_valid_moves): O'yinchi {player_id} yoki zar topilmadi.")
+        if not player or dice_roll is None or player.is_sleeping:
             return {}
 
-        valid_moves: Dict[int, Tuple[Optional[int], str, int]] = {}
+        valid_moves: Dict[int, Tuple[Optional[int], str]] = {}
 
         for piece in player.pieces:
             if piece.state == PieceState.FINISHED:
-                # print(f"Debug (get_valid_moves): Tosh {piece.id} allaqachon marrada.")
                 continue
 
-            # 1. Har bir tosh uchun potentsial yangi holatni hisoblash
-            new_main_path_pos, new_state_enum, new_steps_on_home = self._calculate_new_position(piece, dice_roll)
+            new_pos_id, new_state_enum = self._calculate_new_position(piece, dice_roll)
 
-            # 2. Agar yurish natijasida hech qanday o'zgarish bo'lmasa, bu valid yurish emas.
-            # Bu holatlar:
-            #   - Tosh uyda (HOME) va zar 6 emas (HOME da qoladi).
-            #   - Tosh uy yo'lida va zar qiymati uni oshirib yuboradi (uy yo'lida joyida qoladi).
-            #   - Tosh umumiy yo'lda va uyga kirishga urinib oshib ketadi (umumiy yo'lda joyida qoladi).
-            # `_calculate_new_position` bu holatlarda toshning asl holatini qaytaradi.
+            # Agar yurish natijasida hech qanday o'zgarish bo'lmasa (joyida qolsa), bu valid yurish emas.
+            # Istisno: Uydan chiqish (HOME -> ACTIVE/SAFE) har doim o'zgarish.
+            is_moving_out_of_home = (piece.state == PieceState.HOME and new_state_enum != PieceState.HOME)
             
-            no_change_in_state = (new_main_path_pos == piece.position and \
-                                new_state_enum == piece.state and \
-                                new_steps_on_home == piece.steps_taken)
+            if new_pos_id == piece.position and new_state_enum == piece.state and not is_moving_out_of_home:
+                continue # O'zgarish yo'q, valid emas
 
-            # Maxsus holat: Agar tosh HOMEda bo'lsa va zar 6 tushib, uydan chiqsa, bu o'zgarishdir.
-            is_moving_out_of_home = (piece.state == PieceState.HOME and \
-                                    dice_roll == 6 and \
-                                    new_state_enum != PieceState.HOME) # != HOME chunki ACTIVE yoki SAFE bo'lishi mumkin
-            
-            if no_change_in_state and not is_moving_out_of_home:
-                # print(f"Debug (get_valid_moves): Tosh {piece.id} uchun o'zgarish yo'q, zar: {dice_roll}.")
-                continue
-            
-            # 3. Boshlang'ich katakda o'zining boshqa toshi bo'lsa (agar uydan chiqarilayotgan bo'lsa)
-            # Bu `is_moving_out_of_home` holati uchun tekshiriladi.
-            # `new_main_path_pos` bu holatda START_POSITIONS[piece.color] bo'ladi.
-            if is_moving_out_of_home:
-                is_start_pos_occupied_by_own_piece = False
+            # Yangi pozitsiyada o'zining boshqa toshi borligini tekshirish (blokirovka)
+            # Bu faqat yangi pozitsiya HOME yoki FINISHED bo'lmaganda tekshiriladi
+            if new_state_enum not in [PieceState.HOME, PieceState.FINISHED]:
+                is_new_pos_occupied_by_own_active_piece = False
                 for p_check in player.pieces:
-                    # O'zi emas va yangi pozitsiyada (boshlang'ich katak) boshqa toshi bormi
-                    if p_check.id != piece.id and p_check.position == new_main_path_pos:
-                        is_start_pos_occupied_by_own_piece = True
-                        break
-                if is_start_pos_occupied_by_own_piece:
-                    # print(f"Debug (get_valid_moves): Tosh {piece.id} uchun boshlang'ich katak {new_main_path_pos} band.")
-                    continue # Bu toshni uydan chiqara olmaydi
-
-            # 4. Yangi pozitsiyada (umumiy yo'lda) o'zining boshqa toshi (blokirovka)
-            # Bu faqat tosh umumiy yo'lga harakatlanayotganda yoki umumiy yo'lda harakatlanayotganda tekshiriladi.
-            # Agar new_main_path_pos is None bo'lsa, tosh uy yo'liga kirgan yoki FINISHED bo'lgan.
-            if new_main_path_pos is not None: # Faqat umumiy yo'ldagi yangi pozitsiyalar uchun
-                is_new_pos_occupied_by_own_piece = False
-                for p_check in player.pieces:
-                    # O'zi emas va yangi pozitsiyada boshqa toshi bormi
-                    # Shuningdek, p_check FINISHED yoki HOME da bo'lmasligi kerak (garchi position None bo'lsa ham)
                     if p_check.id != piece.id and \
-                    p_check.position == new_main_path_pos and \
-                    p_check.state not in [PieceState.HOME, PieceState.FINISHED]:
-                        is_new_pos_occupied_by_own_piece = True
+                       p_check.position == new_pos_id and \
+                       p_check.state not in [PieceState.HOME, PieceState.FINISHED]:
+                        is_new_pos_occupied_by_own_active_piece = True
                         break
-                if is_new_pos_occupied_by_own_piece:
-                    # print(f"Debug (get_valid_moves): Tosh {piece.id} uchun yangi pozitsiya {new_main_path_pos} o'zining boshqa toshi bilan band.")
-                    continue # Bu katakka yurish mumkin emas
+                if is_new_pos_occupied_by_own_active_piece:
+                    continue # Bu katakka yura olmaydi, o'zining boshqa faol toshi bor
 
-            # Agar barcha tekshiruvlardan o'tsa, bu valid yurish
-            valid_moves[piece.id] = (new_main_path_pos, new_state_enum.value, new_steps_on_home)
+            valid_moves[piece.id] = (new_pos_id, new_state_enum.value)
         
-        # print(f"Debug (get_valid_moves): O'yinchi {player_id}, Zar: {dice_roll}, Mumkin yurishlar: {valid_moves}")
         return valid_moves
 
-    def attempt_move_piece(self, player_id: int, piece_id_to_move: int) -> Tuple[bool, bool]: # (succeeded, captured_opponent)
+    def attempt_move_piece(self, player_id: int, piece_id_to_move: int) -> Tuple[bool, bool, Optional[PieceColor]]: # (succeeded, captured_opponent, captured_opponent_color)
         player = self.players.get(player_id)
-        dice_roll = self.current_dice_roll # Bu metod chaqirilishidan oldin zar tashlangan bo'lishi kerak
-        
-        if not player or dice_roll is None:
-            print(f"Xatolik: O'yinchi ({player_id}) yoki zar ({dice_roll}) topilmadi (attempt_move_piece).")
-            return False, False
+        dice_roll = self.current_dice_roll
+
+        if not player or dice_roll is None or player.is_sleeping:
+            return False, False, None
+        if player.user_id != self.get_current_player().user_id: # Navbat tekshiruvi
+            return False, False, None
 
         target_piece: Optional[Piece] = None
         for p in player.pieces:
@@ -393,84 +329,213 @@ class LudoGame:
                 break
         
         if not target_piece or target_piece.state == PieceState.FINISHED:
-            print(f"Xatolik: Tosh ({piece_id_to_move}) topilmadi yoki allaqachon marrada.")
-            return False, False
+            return False, False, None
 
-        # Bu tosh uchun mumkin bo'lgan yurishni _calculate_new_position orqali qayta hisoblash
-        # Yoki get_valid_moves dan olingan ma'lumotni ishlatish
-        # Hozircha, qayta hisoblaymiz, chunki get_valid_moves hali to'liq emas
+        # Mumkin bo'lgan yurishlar orasidan tanlanganini tekshirish
+        possible_moves = self.get_valid_moves(player_id)
+        if piece_id_to_move not in possible_moves:
+            print(f"Xatolik: Tosh {piece_id_to_move} uchun zar {dice_roll} bilan valid yurish yo'q.")
+            return False, False, None
         
-        new_pos, new_state_enum, new_steps = self._calculate_new_position(target_piece, dice_roll)
-
-        # Agar yurish natijasida tosh joyidan qimirlamasa (valid bo'lmagan yurish)
-        if target_piece.state == PieceState.HOME and new_state_enum == PieceState.HOME:
-            print(f"Muvaffaqiyatsiz yurish: Tosh {target_piece.id} uyda qoldi (zar {dice_roll}).")
-            return False, False
-        # Agar tosh uy yo'lida oshib ketib, joyida qolgan bo'lsa (bu holatni _calc.. aniqroq qaytarishi kerak)
-        if target_piece.position is None and target_piece.steps_taken > 0 and \
-           new_pos is None and new_steps == target_piece.steps_taken and new_state_enum != PieceState.FINISHED:
-            print(f"Muvaffaqiyatsiz yurish: Tosh {target_piece.id} uy yo'lida oshib ketdi.")
-            return False, False
-
-
-        # TODO: Yangi pozitsiyada o'zining boshqa toshi borligini tekshirish (blokirovka)
-        # Agar `new_pos` `None` bo'lmasa:
-        #   for p_check in player.pieces:
-        #       if p_check.id != target_piece.id and p_check.position == new_pos:
-        #           print(f"Muvaffaqiyatsiz yurish: Yangi pozitsiyada ({new_pos}) o'zining boshqa toshi bor.")
-        #           return False, False
-        
-        captured_opponent = False
-        if new_pos is not None and new_state_enum != PieceState.HOME: # Faqat maydondagi yangi pozitsiyalar uchun
-            captured_opponent = self._handle_capture(new_pos, player_id)
+        new_pos_id, new_state_str = possible_moves[piece_id_to_move]
+        new_state_enum = PieceState(new_state_str)
 
         # Tosh holatini yangilash
-        target_piece.position = new_pos
+        original_position_before_move = target_piece.position # Urish uchun
+        target_piece.position = new_pos_id
         target_piece.state = new_state_enum
-        target_piece.steps_taken = new_steps
         
-        print(f"O'yinchi {player_id} tosh {target_piece.id} ni yurdi. Yangi holat: Pos:{new_pos}, State:{new_state_enum.value}, StepsHome:{new_steps}")
-        self.updated_at = datetime.datetime.now(datetime.timezone.utc)
-        return True, captured_opponent
+        captured_opponent = False
+        captured_opponent_color: Optional[PieceColor] = None
 
-    def _handle_capture(self, position_to_check: int, current_player_id: int):
-        """
-        Berilgan pozitsiyada raqib toshi bo'lsa, uni uradi.
-        current_player_id - hozir yurayotgan o'yinchi.
-        """
-        if position_to_check in SAFE_SQUARES:
-            return # Xavfsiz katakda tosh urilmaydi
+        # Raqibni urish logikasi (agar yangi pozitsiya HOME yoki FINISHED bo'lmasa va xavfsiz katak bo'lmasa)
+        if new_state_enum not in [PieceState.HOME, PieceState.FINISHED] and \
+           new_pos_id is not None and new_pos_id not in SAFE_SQUARE_IDS and \
+           new_pos_id not in HOME_LANE_IDS[target_piece.color]: # O'zining uy yo'lida urmaydi
+            
+            for opp_player_id, opp_player_obj in self.players.items():
+                if opp_player_id == player_id: # O'zini o'zi urmaydi
+                    continue
+                for opp_piece in opp_player_obj.pieces:
+                    if opp_piece.position == new_pos_id and \
+                       opp_piece.state not in [PieceState.HOME, PieceState.FINISHED]:
+                        # Raqib toshi topildi
+                        opp_piece.state = PieceState.HOME
+                        opp_piece.position = HOME_BASE_IDS[opp_piece.color][opp_piece.id] # Uyiga qaytarish
+                        captured_opponent = True
+                        captured_opponent_color = opp_piece.color
+                        print(f"!!! O'yinchi {player_id} o'yinchi {opp_player_id} ning {opp_piece.color.value} rangli toshini ({opp_piece.id}) pozitsiya {new_pos_id} da urdi!")
+                        break # Bitta katakda bir nechta raqib toshi bo'lsa, faqat bittasi uriladi (klassik qoida)
+                if captured_opponent:
+                    break
+        
+        print(f"O'yinchi {player_id} tosh {target_piece.id} ni yurdi. Yangi holat: PosID:{new_pos_id}, State:{new_state_enum.value}")
+        self._update_timestamp()
+        self.check_winner() # Har bir yurishdan keyin g'olibni tekshirish
+        return True, captured_opponent, captured_opponent_color
 
-        for p_id, player_obj in self.players.items():
-            if p_id == current_player_id: # O'zining toshini urmaydi
-                continue
-            for piece_to_check in player_obj.pieces:
-                if piece_to_check.position == position_to_check and piece_to_check.state not in [PieceState.HOME, PieceState.FINISHED]:
-                    # Raqib toshi topildi va u maydonda
-                    piece_to_check.state = PieceState.HOME
-                    piece_to_check.position = None
-                    piece_to_check.steps_taken = 0
-                    print(f"!!! O'yinchi {current_player_id} o'yinchi {p_id} ning toshini ({piece_to_check.id}) pozitsiya {position_to_check} da urdi!")
-                    # Klassik Ludoda bitta katakda bitta o'yinchining faqat bitta toshi bo'lishi mumkin,
-                    # Shuning uchun bir marta urish yetarli. Agar "stack" bo'lsa, bu logika o'zgaradi.
-                    return # Faqat bitta toshni uramiz (agar bir nechta bo'lsa ham)
-    
-    # game_logic.py LudoGame klassi ichida
+    def next_turn(self):
+        if not self.player_order or self.game_status != "playing":
+            return
+        
+        active_player_ids = [uid for uid in self.player_order if self.players[uid] and not self.players[uid].is_sleeping]
+        if not active_player_ids:
+            print("Faol o'yinchilar qolmadi, navbatni o'tkazib bo'lmaydi.")
+            # Bu yerda o'yinni to'xtatish yoki boshqa logika kerak bo'lishi mumkin
+            return
+
+        # Joriy o'yinchining aktivlar ro'yxatidagi indeksini topish
+        try:
+            current_active_player_list_index = active_player_ids.index(self.player_order[self.current_player_index])
+        except ValueError: # Agar joriy o'yinchi uxlayotgan bo'lsa va aktivlar ro'yxatida bo'lmasa
+            # Keyingi aktiv o'yinchini topishga harakat qilamiz
+            # Bu holat murakkab, yaxshisi joriy o'yinchining navbati kelganda uxlayotgan bo'lsa,
+            # darhol navbatni o'tkazish kerak.
+            # Hozircha, agar joriy o'yinchi aktivlar ro'yxatida bo'lmasa, birinchisidan boshlaymiz.
+             current_active_player_list_index = -1 # Bu keyingi hisoblashda 0 ga aylanadi
+
+        next_active_player_list_index = (current_active_player_list_index + 1) % len(active_player_ids)
+        next_player_user_id = active_player_ids[next_active_player_list_index]
+        
+        # player_order dagi asl indeksini topish
+        self.current_player_index = self.player_order.index(next_player_user_id)
+        
+        self.current_dice_roll = None # Yangi navbatda zar qiymati nolga tenglashadi
+        new_turn_player = self.get_current_player()
+        print(f"Navbat o'tdi. Endi {new_turn_player.user_id if new_turn_player else 'N/A'} ning navbati.")
+        self._update_timestamp()
+
     def check_winner(self) -> bool:
-        if self.game_status == "finished": # Agar allaqachon g'olib aniqlangan bo'lsa
+        if self.game_status == "finished":
             return True
 
         for player_id, player in self.players.items():
+            if player.has_finished_all_pieces: # Agar allaqachon yutgan bo'lsa
+                if self.winner_user_id is None: # Bu faqat bir marta o'rnatilishi kerak
+                    self.winner_user_id = player_id
+                    self.game_status = "finished"
+                    print(f"G'olib allaqachon belgilangan: {player_id}")
+                # Agar bir nechta o'yinchi bir vaqtda yutsa (kamdan-kam), logikani kengaytirish mumkin
+                continue
+
             finished_pieces_count = 0
             for piece in player.pieces:
                 if piece.state == PieceState.FINISHED:
                     finished_pieces_count += 1
             
-            if finished_pieces_count == 4: # Barcha 4 tosh marraga yetgan
+            if finished_pieces_count == 4:
                 self.winner_user_id = player_id
-                player.has_finished_all_pieces = True # LudoPlayer da bu atribut bor edi
+                player.has_finished_all_pieces = True
                 self.game_status = "finished"
-                self.updated_at = datetime.datetime.now(datetime.timezone.utc)
+                self._update_timestamp()
                 print(f"!!! G'OLIB ANIQLANDI: O'yinchi {player_id} !!!")
-                return True
-        return False
+                return True # G'olib topildi
+        return False # Hali g'olib yo'q
+
+    def get_game_state(self) -> dict:
+        """O'yinning joriy holatini dict ko'rinishida qaytaradi (klientga yuborish uchun)"""
+        current_player = self.get_current_player()
+        return {
+            "game_id": self.game_id,
+            "status": self.game_status,
+            "players": {uid: p.to_dict() for uid, p in self.players.items()},
+            "player_order": self.player_order,
+            "current_player_user_id": current_player.user_id if current_player else None,
+            "current_dice_roll": self.current_dice_roll,
+            "winner_user_id": self.winner_user_id,
+            "host_id": self.host_id,
+            "max_players": self.max_players,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+    def set_player_sleep_status(self, player_id: int, is_sleeping: bool):
+        player = self.players.get(player_id)
+        if player:
+            was_sleeping = player.is_sleeping
+            player.is_sleeping = is_sleeping
+            self._update_timestamp()
+            print(f"O'yinchi {player_id} ning uyqu holati o'zgartirildi: {is_sleeping}")
+            
+            # Agar hozir navbati kelgan o'yinchi uxlayotgan bo'lsa va endi uyg'ongan bo'lmasa
+            # yoki endi uxlab qolgan bo'lsa, navbatni tekshirish kerak.
+            current_navbatdagi_player = self.get_current_player()
+            if current_navbatdagi_player and current_navbatdagi_player.user_id == player_id and is_sleeping:
+                print(f"Navbatdagi o'yinchi {player_id} uxlab qoldi, navbat o'tkaziladi.")
+                self.next_turn() # Darhol navbatni o'tkazish
+            elif not is_sleeping and was_sleeping: # Agar uyg'ongan bo'lsa
+                 # Qayta qo'shilish logikasi (masalan, xabar yuborish) backend WebSocket qismida hal qilinadi
+                 pass
+
+
+# Test uchun (ixtiyoriy)
+if __name__ == '__main__':
+    game = LudoGame("test_game_123", host_id=100)
+    game.add_player(100, "Ali")
+    game.add_player(200, "Vali")
+    
+    game.start_game()
+    
+    current_player_obj = game.get_current_player()
+    if current_player_obj:
+        print(f"O'yin boshlandi. Birinchi navbat: {current_player_obj.first_name} ({current_player_obj.user_id})")
+        
+        # Test: Uydan chiqarish
+        print("\n--- Test: Uydan chiqarish ---")
+        game.current_dice_roll = 6
+        player_100_pieces = game.players[100].pieces
+        
+        # 0-toshni (ID 0) uydan chiqarishga harakat
+        valid_moves_p100 = game.get_valid_moves(100)
+        print(f"O'yinchi 100 uchun zar 6 bilan mumkin bo'lgan yurishlar: {valid_moves_p100}")
+        
+        if 0 in valid_moves_p100: # Agar 0-toshni yurish mumkin bo'lsa
+            succeeded, captured, _ = game.attempt_move_piece(100, 0) # 0 - piece_id
+            print(f"0-toshni yurish natijasi: Succeeded={succeeded}, Captured={captured}")
+            print(f"0-toshning yangi holati: {player_100_pieces[0]}")
+        else:
+            print("0-toshni zar 6 bilan uydan chiqarib bo'lmadi (valid movesda yo'q).")
+
+        print(f"\nO'yin holati: {game.get_game_state()}")
+
+        # Test: Oddiy yurish
+        print("\n--- Test: Oddiy yurish (agar tosh maydonda bo'lsa) ---")
+        if player_100_pieces[0].state != PieceState.HOME: # Agar 0-tosh maydonga chiqqan bo'lsa
+            game.current_dice_roll = 3
+            valid_moves_p100_after_out = game.get_valid_moves(100)
+            print(f"O'yinchi 100 uchun zar 3 bilan mumkin bo'lgan yurishlar: {valid_moves_p100_after_out}")
+            if 0 in valid_moves_p100_after_out:
+                 succeeded, captured, _ = game.attempt_move_piece(100, 0)
+                 print(f"0-toshni (maydonda) zar 3 bilan yurish: Succeeded={succeeded}, Captured={captured}")
+                 print(f"0-toshning yangi holati: {player_100_pieces[0]}")
+            else:
+                print("0-toshni zar 3 bilan yurib bo'lmadi.")
+        else:
+            print("0-tosh hali ham uyda, oddiy yurishni test qilib bo'lmaydi.")
+
+        game.next_turn()
+        current_player_obj_after_turn = game.get_current_player()
+        if current_player_obj_after_turn:
+             print(f"\nKeyingi navbat: {current_player_obj_after_turn.first_name} ({current_player_obj_after_turn.user_id})")
+
+
+        # Test: Uyqu holati
+        print("\n--- Test: Uyqu holati ---")
+        game.set_player_sleep_status(200, True) # Vali uxlab qoldi
+        print(f"Valining holati: {game.players[200]}")
+        
+        # Alining navbati (agar avvalgi navbat Alida bo'lsa va u 6 tashlamagan bo'lsa)
+        # Agar Alining navbati bo'lsa va u yurgan bo'lsa, keyingi navbat Valiga kelishi kerak edi,
+        # lekin Vali uxlayapti, shuning uchun navbat yana Aliga (yoki boshqa aktiv o'yinchiga) o'tishi kerak.
+        
+        # Agar hozir Alining navbati bo'lsa, u yursin.
+        if game.get_current_player().user_id == 100:
+            game.current_dice_roll = 2
+            valid_moves_ali_sleep = game.get_valid_moves(100)
+            print(f"Ali (Vali uxlayotganda) zar 2 bilan yurishlari: {valid_moves_ali_sleep}")
+            # ... yurishni amalga oshirish ...
+            # game.attempt_move_piece(100, piece_to_move_id)
+            game.next_turn() # Navbatni o'tkazish
+
+        print(f"Vali uxlayotgandan keyingi navbat: {game.get_current_player().user_id if game.get_current_player() else 'N/A'}")
+        # Bu yerda navbat yana 100 (Ali) ga qaytishi kerak, chunki Vali (200) uxlayapti.
