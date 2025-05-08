@@ -251,8 +251,8 @@ class LudoGame:
                 temp_pos_id += 1
             
             # Maxsus sakrashlar (agar mavjud bo'lsa va umumiy yo'lda bo'lsa)
-            if not is_on_home_lane and temp_pos_id in SPECIAL_JUMPS:
-                temp_pos_id = SPECIAL_JUMPS[temp_pos_id]
+        if not is_on_home_lane and temp_pos_id in SPECIAL_JUMPS:
+            temp_pos_id = SPECIAL_JUMPS[temp_pos_id]
 
         # Yakuniy holatni aniqlash
         final_pos_id = temp_pos_id

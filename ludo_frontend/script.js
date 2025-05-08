@@ -51,8 +51,8 @@ for (const key in korBackend) {
     if (korBackend.hasOwnProperty(key)) {
         const coordsPx = korBackend[key];
         pieceCoordinatesPercent[key] = {
-            x: parseFloat(((coordsPx[0] / ETALON_BOARD_WIDTH) * 100).toFixed(2)),
-            y: parseFloat(((coordsPx[1] / ETALON_BOARD_HEIGHT) * 100).toFixed(2)),
+            x: parseFloat((((coordsPx[0]+30) / ETALON_BOARD_WIDTH) * 100).toFixed(2)),
+            y: parseFloat((((coordsPx[1]+30) / ETALON_BOARD_HEIGHT) * 100).toFixed(2)),
         };
     }
 }

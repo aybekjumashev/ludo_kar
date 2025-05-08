@@ -127,7 +127,6 @@ header, footer {
 .piece-on-board.movable {
     cursor: pointer;
     box-shadow: 0 0 10px 3px yellow; /* Yurish mumkin bo'lgan toshlarni belgilash */
-    transform: scale(1.1); /* Kichik kattalashtirish */
 }
 
 
