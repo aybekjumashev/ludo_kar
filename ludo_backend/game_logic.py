@@ -120,9 +120,11 @@ class LudoPlayer:
         }
 
 class LudoGame:
-    def __init__(self, game_id: str, host_id: int):
+    def __init__(self, game_id: str, host_id: int, chat_id: int):
         self.game_id: str = game_id
         self.host_id: int = host_id # O'yinni yaratgan foydalanuvchi IDsi
+        self.chat_id: int = chat_id  # <--- YANGI: Guruh IDsi
+        self.message_id: Optional[int] = None  # <--- YANGI: Bot yuborgan xabarning IDsi
         self.players: Dict[int, LudoPlayer] = {} # user_id: LudoPlayer
         self.player_order: List[int] = [] # O'yinchilarning navbat tartibi (user_id lar)
         self.current_player_index: int = 0
@@ -431,6 +433,10 @@ class LudoGame:
                 print(f"!!! G'OLIB ANIQLANDI: O'yinchi {player_id} !!!")
                 return True # G'olib topildi
         return False # Hali g'olib yo'q
+    
+    def set_message_id(self, message_id: int): # <--- YANGI METOD
+        self.message_id = message_id
+        self._update_timestamp()
 
     def get_game_state(self) -> dict:
         """O'yinning joriy holatini dict ko'rinishida qaytaradi (klientga yuborish uchun)"""
@@ -447,6 +453,8 @@ class LudoGame:
             "max_players": self.max_players,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
+            "chat_id": self.chat_id, # <--- YANGI: Frontend yoki bot uchun
+            "message_id": self.message_id # <--- YANGI: Frontend yoki bot uchun
         }
 
     def set_player_sleep_status(self, player_id: int, is_sleeping: bool):

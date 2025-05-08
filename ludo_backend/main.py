@@ -15,6 +15,21 @@ from game_logic import LudoGame, LudoPlayer, PieceColor # game_logic.py dan impo
 # Hozircha Pydantic GameBase ni saqlab qolamiz, u API javoblari uchun ishlatiladi.
 # LudoGame esa o'yinning ichki logikasini boshqaradi.
 
+class BotNewGameRequest(BaseModel):
+    chat_id: int
+    host_user_id: int
+    host_first_name: str
+    # host_username: Optional[str] = None # Agar kerak bo'lsa
+
+class BotNewGameResponse(BaseModel):
+    game_id: str
+    chat_id: int # Botga qaytarish uchun qulaylik
+    host_id: int # Botga qaytarish uchun qulaylik
+
+class BotSetMessageIdRequest(BaseModel):
+    game_id: str
+    message_id: int
+
 class PlayerBase(BaseModel):
     user_id: int
     first_name: str
@@ -433,6 +448,52 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, user_id: int):
         print(f"XATOLIK (WebSocket endpointida, o'yin {game_id}, foydalanuvchi {user_id}): {type(e).__name__} - {e}")
         import traceback
         traceback.print_exc()
+
+
+
+# Webhook endpoint (bot uchun)
+@app.post("/bot/new_game", response_model=BotNewGameResponse, tags=["Bot Webhooks"])
+async def webhook_create_new_game_from_bot(payload: BotNewGameRequest = Body(...)):
+    """
+    Telegram botidan yangi o'yin yaratish uchun so'rov qabul qiladi.
+    Yangi game_id generatsiya qilib, botga qaytaradi.
+    """
+    game_id = str(uuid.uuid4())
+    
+    # LudoGame obyektini yaratish, endi chat_id bilan
+    ludo_game_instance = LudoGame(
+        game_id=game_id,
+        host_id=payload.host_user_id,
+        chat_id=payload.chat_id  # <--- chat_id ni LudoGame ga uzatish
+    )
+    
+    # Xostni LudoGame ga qo'shish
+    ludo_game_instance.add_player(user_id=payload.host_user_id, first_name=payload.host_first_name)
+    
+    active_ludo_games[game_id] = ludo_game_instance
+    print(f"Bot orqali yangi Ludo o'yini yaratildi: GameID={game_id}, ChatID={payload.chat_id}, Xost: {payload.host_user_id}")
+    
+    return BotNewGameResponse(
+        game_id=game_id,
+        chat_id=payload.chat_id,
+        host_id=payload.host_user_id
+    )
+
+
+@app.post("/bot/set_message_id", status_code=status.HTTP_200_OK, tags=["Bot Webhooks"])
+async def webhook_set_game_message_id(payload: BotSetMessageIdRequest = Body(...)):
+    """
+    Bot yuborgan o'yin xabarining message_id sini LudoGame obyektida saqlaydi.
+    """
+    ludo_game = active_ludo_games.get(payload.game_id)
+    if not ludo_game:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"O'yin {payload.game_id} topilmadi")
+
+    ludo_game.set_message_id(payload.message_id)
+    print(f"O'yin {payload.game_id} uchun message_id={payload.message_id} o'rnatildi.")
+    return {"message": "Message ID muvaffaqiyatli o'rnatildi"}
+
+
 
 @app.get("/")
 async def root():
