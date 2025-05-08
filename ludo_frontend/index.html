@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-f">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LudoKing Mini App</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Telegram WebApp Script -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <div id="app-container">
+        <header>
+            <h1>LudoKing</h1>
+            <div id="game-info">
+                <p>O'yin ID: <span id="game-id-display">-</span></p>
+                <p>Status: <span id="game-status-display">Yuklanmoqda...</span></p>
+                <p>Sizning ID: <span id="user-id-display">-</span></p>
+            </div>
+        </header>
+
+        <main>
+            <div id="players-list-container">
+                <h2>O'yinchilar:</h2>
+                <ul id="players-list">
+                    <!-- O'yinchilar shu yerga qo'shiladi -->
+                </ul>
+            </div>
+
+            <div id="game-board-container">
+                <!-- O'yin maydoni (hozircha bo'sh) -->
+            </div>
+
+            <div id="controls-container">
+                <div id="dice-area">
+                    <p>Zar: <span id="dice-value-display">-</span></p>
+                    <button id="roll-dice-button" disabled>Zar Tashlash</button>
+                </div>
+                <div id="turn-info">
+                    Navbat: <span id="current-turn-player-display">-</span>
+                </div>
+                 <div id="message-area">
+                    <p id="system-message"></p>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>© 2023 LudoKing</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

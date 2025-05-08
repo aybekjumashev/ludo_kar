@@ -1,0 +1,137 @@
+body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 10px;
+    background-color: #f0f0f0;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* Kontent yuqoridan boshlanishi uchun */
+    min-height: 100vh;
+}
+
+#app-container {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 600px; /* Mini App uchun o'rtacha kenglik */
+}
+
+header, footer {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+#game-info p, #dice-area p, #turn-info {
+    margin: 5px 0;
+}
+
+#players-list-container {
+    margin-bottom: 20px;
+}
+
+#players-list {
+    list-style: none;
+    padding: 0;
+}
+
+#players-list li {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+}
+#players-list li:last-child {
+    border-bottom: none;
+}
+.player-color-indicator {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    margin-right: 10px;
+    border: 1px solid #ccc;
+}
+
+#game-board-container {
+    width: 90vw; /* Ekran kengligining 90% */
+    max-width: 500px; /* Maksimal kenglik (rasm asl kengligi) */
+    aspect-ratio: 1 / 1; /* Kvadrat shaklni saqlash uchun */
+    /* height avtomatik hisoblanadi */
+    margin: 20px auto;
+    position: relative;
+    background-image: url('board.jpg');
+    background-size: contain; /* yoki cover, qaysi biri yaxshiroq ko'rinsa */
+    background-repeat: no-repeat;
+    background-position: center;
+    overflow: hidden;
+}
+
+#controls-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+}
+
+#dice-area button {
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#dice-area button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+#message-area {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    min-height: 30px;
+}
+#system-message {
+    margin: 0;
+    font-style: italic;
+}
+
+
+.piece-on-board {
+    position: absolute; /* Ota elementiga nisbatan pozitsiyalash */
+    width: 6%;  /* Tosh o'lchami (o'zgartiring!) */
+    height: 6%; /* Tosh o'lchami (o'zgartiring!) */
+    border-radius: 50%; /* Dumaloq toshlar uchun */
+    border: 2px solid black; /* Tosh chegarasi */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    color: white;
+    text-shadow: 1px 1px 1px black;
+    cursor: default; /* Odatdagi kursor */
+    transform: translate(-50%, -50%);
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; /* Animatsiya uchun */
+    background-size: contain; /* Agar rasm ishlatilsa */
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+
+.piece-on-board.movable {
+    cursor: pointer;
+    box-shadow: 0 0 10px 3px yellow; /* Yurish mumkin bo'lgan toshlarni belgilash */
+    transform: scale(1.1); /* Kichik kattalashtirish */
+}
+
+
+.piece-color-red { background-color: red; }
+.piece-color-green { background-color: green; }
+.piece-color-yellow { background-color: gold; } /* 'yellow' ba'zan ko'rinmaydi */
+.piece-color-blue { background-color: blue; }
