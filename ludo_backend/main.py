@@ -343,7 +343,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, user_id: int):
                         await manager.send_personal_message({"type": "error", "message": "'piece_id' butun son bo'lishi kerak."}, websocket)
                         continue
 
-                    move_successful, captured_opponent = ludo_game.attempt_move_piece(user_id, piece_id_to_move)
+                    move_successful, captured_opponent, captured_color = ludo_game.attempt_move_piece(user_id, piece_id_to_move)
                     
                     if move_successful:
                         # TODO: G'olibni tekshirish
@@ -368,13 +368,16 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, user_id: int):
 
                             elif captured_opponent: # <<-- BUNI QO'SHING
                                 should_next_turn = False
-                                print(f"O'yinchi {user_id} raqibni urdi, yana yurish huquqini oldi.")
+                                print(f"O'yinchi {user_id} raqibni urdi ({captured_color.value if captured_color else 'N/A'}), yana yurish huquqini oldi.") # captured_color ni ishlating
 
                             await manager.broadcast_to_game(
                                 {"type": "piece_moved", 
                                 "moved_by_user_id": user_id,
                                 "piece_id": piece_id_to_move,
                                 "dice_value_used": ludo_game.current_dice_roll, # Qaysi zar bilan yurilganini bilish uchun
+                                "captured_opponent": captured_opponent, # Klientga bu ma'lumotni yuborish mumkin
+                                "captured_color": captured_color.value if captured_color else None, # Klientga urilgan tosh rangini yuborish
+                                "can_roll_again": not should_next_turn,
                                 "game_state": ludo_game.get_game_state()},
                                 game_id
                             )

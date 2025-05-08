@@ -202,6 +202,14 @@ function connectWebSocket() {
                     // Bu yerda qo'shimcha xabar chiqarish mumkin.
                     systemMessageDisplay.textContent = "Tosh yurildi.";
                     clearMovablePieceHighlights();
+                    if (data.moved_by_user_id === currentUserId && data.can_roll_again) {
+                        systemMessageDisplay.textContent += " Siz yana zar tashlashingiz mumkin.";
+                        rollDiceButton.disabled = false;
+                        // Muhim: current_dice_roll ni null qilmaymiz, chunki serverda u hali ham oldingi qiymatda
+                        // Lekin UI da "Zar: -" ko'rinishi uchun currentGameState ni o'zgartirish mumkin, ammo bu server bilan nomuvofiqlik keltirishi mumkin.
+                        // Yaxshisi, server current_dice_roll ni null qilishi kerak, agar yana zar tashlash kerak bo'lsa.
+                        // Yoki klient serverga current_dice_roll ni e'tiborga olmasdan "roll_dice" yuboradi.
+                    }
                     break;
                 case "next_turn":
                     systemMessageDisplay.textContent = `Navbat ${currentGameState.players[currentGameState.current_player_user_id]?.first_name || '-'} ga o'tdi.`;
