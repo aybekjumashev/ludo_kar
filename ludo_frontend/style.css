@@ -141,7 +141,7 @@ header, footer {
     position: absolute;
     background-color: rgba(0, 0, 0, 0.3); /* Yarim shaffof fon */
     color: white;
-    padding: 2px 5px;
+    padding: 1px 5px;
     border-radius: 3px;
     font-size: 10px; /* O'lchamni sozlang */
     font-weight: bold;
