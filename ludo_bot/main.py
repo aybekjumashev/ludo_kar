@@ -5,9 +5,9 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+BOT_TOKEN = "8033028557:AAHWfw4fv9_8DJ5I0tJRqoV0FHjTWeywX5o"
 API_SERVER_URL = "http://localhost:8000" # Sizning FastAPI serveringiz manzili
-MINI_APP_BASE_URL = "https://your_username.github.io/your_repo_name/" # Sizning Mini App manzilingiz
+MINI_APP_BASE_URL = "https://t.me/ludo_demo_bot/ludo/" # Sizning Mini App manzilingiz
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -50,7 +50,7 @@ async def new_game_command_handler(message: types.Message):
                 await message.reply("O'yin yaratishda xatolik yuz berdi (serverdan game_id kelmadi).")
                 return
 
-            mini_app_url = f"{MINI_APP_BASE_URL}?tgWebAppStartParam={game_id}"
+            mini_app_url = f"{MINI_APP_BASE_URL}?startapp={game_id}"
             
             builder = InlineKeyboardBuilder()
             builder.button(text="🏆 O'yinga qo'shilish", url=mini_app_url)

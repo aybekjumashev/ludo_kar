@@ -134,3 +134,21 @@ header, footer {
 .piece-color-green { background-color: green; }
 .piece-color-yellow { background-color: gold; } /* 'yellow' ba'zan ko'rinmaydi */
 .piece-color-blue { background-color: blue; }
+
+
+
+.player-name-on-board {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.5); /* Yarim shaffof fon */
+    color: white;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 10px; /* O'lchamni sozlang */
+    font-weight: bold;
+    white-space: nowrap; /* Ism bir qatorda turishi uchun */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Uzun ismlar uchun ... */
+    max-width: 20%; /* Doska kengligiga nisbatan maksimal eni */
+    text-align: center;
+    /* transform: translate(-50%, -50%); Buni o'rniga to'g'ridan-to'g'ri left/top ni ishlatamiz */
+}

@@ -21,8 +21,15 @@ let websocket = null;
 let currentGameState = null; // Backenddan keladigan to'liq o'yin holati
 
 // Backend API va WebSocket manzillari (o'zgartiring!)
-const API_BASE_URL = 'http://localhost:8000'; // Sizning backend manzilingiz
-const WS_BASE_URL = 'ws://localhost:8000';  // Sizning WebSocket manzilingiz
+const API_BASE_URL = 'http://10.95.4.254:8000'; // Sizning backend manzilingiz
+const WS_BASE_URL = 'ws://10.95.4.254:8000';  // Sizning WebSocket manzilingiz
+
+const playerNameCoordinatesPercent = {
+    red:    { top: '88%', left: '80%', textAlign: 'right' },  // Pastki o'ng burchak
+    green:  { top: '88%', left: '2%', textAlign: 'left' },   // Pastki chap burchak
+    yellow: { top: '2%', left: '2%', textAlign: 'left' },    // Yuqori chap burchak
+    blue:   { top: '2%', left: '80%', textAlign: 'right' }    // Yuqori o'ng burchak
+};
 
 // --- postoimg.py dan `kor` lug'ati va doska o'lchamlari ---
 // BU `korBackend` LUG'ATINI TO'LIQ TO'LDIRING!
@@ -314,7 +321,7 @@ function updateUIWithGameState(gameState) {
         rollDiceButton.disabled = true;
     }
 
-    drawGameBoardAndPieces(gameState);
+    drawBoardElements(gameState);
 }
 
 rollDiceButton.addEventListener('click', () => {
@@ -325,11 +332,79 @@ rollDiceButton.addEventListener('click', () => {
     }
 });
 
-function drawGameBoardAndPieces(gameState) {
-    gameBoardContainer.innerHTML = ''; // Eski toshlarni tozalash
+// function drawGameBoardAndPieces(gameState) {
+//     gameBoardContainer.innerHTML = ''; // Eski toshlarni tozalash
+
+//     if (!gameState || !gameState.players) {
+//         console.warn("drawGameBoardAndPieces: gameState yoki gameState.players mavjud emas.");
+//         return;
+//     }
+
+//     const piecesToDraw = [];
+//     Object.values(gameState.players).forEach(player => {
+//         if (player && player.pieces && Array.isArray(player.pieces)) {
+//             player.pieces.forEach(pieceData => {
+//                 piecesToDraw.push({ ...pieceData, playerColor: player.color });
+//             });
+//         }
+//     });
+    
+//     // Bir xil pozitsiyadagi toshlarni guruhlash (keyinchalik ofset uchun)
+//     const positionsMap = new Map();
+//     piecesToDraw.forEach(p => {
+//         if (p.position === null || p.position === undefined) return; // Pozitsiyasi yo'q toshlarni chizmaymiz
+//         if (!positionsMap.has(p.position)) {
+//             positionsMap.set(p.position, []);
+//         }
+//         positionsMap.get(p.position).push(p);
+//     });
+
+
+//     piecesToDraw.forEach(pieceData => {
+//         const pieceElement = document.createElement('div');
+//         pieceElement.classList.add('piece-on-board');
+//         if (pieceData.playerColor) {
+//             pieceElement.classList.add(`piece-color-${pieceData.playerColor}`); // e.g., piece-color-red
+//             // Yoki to'g'ridan-to'g'ri style.backgroundColor = pieceData.playerColor;
+//             pieceElement.style.backgroundColor = pieceData.playerColor;
+//         }
+
+//         // pieceElement.textContent = pieceData.id; // Tosh ID sini ko'rsatish (ixtiyoriy)
+//         pieceElement.dataset.pieceId = pieceData.id;
+//         pieceElement.dataset.ownerId = pieceData.player_id;
+
+//         const stylePos = getPieceStylePosition(pieceData);
+        
+//         let finalLeft = stylePos.left;
+//         let finalTop = stylePos.top;
+
+//         // Bir xil pozitsiyadagi toshlar uchun ofset
+//         const piecesInSameCell = positionsMap.get(pieceData.position) || [];
+//         if (piecesInSameCell.length > 1) {
+//             const pieceIndexInCell = piecesInSameCell.findIndex(p => p.id === pieceData.id && p.player_id === pieceData.player_id);
+//             const { dxPercent, dyPercent } = calculateOffsetForStackedPieces(piecesInSameCell.length, pieceIndexInCell);
+            
+//             finalLeft = `${parseFloat(stylePos.left) + dxPercent}%`;
+//             finalTop = `${parseFloat(stylePos.top) + dyPercent}%`;
+//         }
+        
+//         pieceElement.style.left = finalLeft;
+//         pieceElement.style.top = finalTop;
+
+//         if (stylePos.display === 'none') {
+//             pieceElement.style.display = 'none';
+//         }
+
+//         gameBoardContainer.appendChild(pieceElement);
+//     });
+// }
+
+
+function drawBoardElements(gameState) {
+    gameBoardContainer.innerHTML = ''; // Eski elementlarni tozalash (toshlar va ismlar)
 
     if (!gameState || !gameState.players) {
-        console.warn("drawGameBoardAndPieces: gameState yoki gameState.players mavjud emas.");
+        console.warn("drawBoardElements: gameState yoki gameState.players mavjud emas.");
         return;
     }
 
@@ -340,29 +415,61 @@ function drawGameBoardAndPieces(gameState) {
                 piecesToDraw.push({ ...pieceData, playerColor: player.color });
             });
         }
+
+        // O'YINCHI ISMINI CHIZISH
+        if (player && player.color && playerNameCoordinatesPercent[player.color]) {
+            const nameElement = document.createElement('div');
+            nameElement.classList.add('player-name-on-board');
+            
+            // Ismni qisqartirish (agar juda uzun bo'lsa)
+            let displayName = player.first_name;
+            if (displayName.length > 10) { // Masalan, 10 belgidan uzun bo'lsa
+                displayName = displayName.substring(0, 8) + "..";
+            }
+            nameElement.textContent = displayName;
+            
+            const nameCoords = playerNameCoordinatesPercent[player.color];
+            nameElement.style.top = nameCoords.top;
+            nameElement.style.left = nameCoords.left;
+            if (nameCoords.textAlign) {
+                nameElement.style.textAlign = nameCoords.textAlign;
+            }
+            if (nameCoords.transform) { // Agar markazlashtirish kerak bo'lsa
+                 nameElement.style.transform = nameCoords.transform;
+            } else { // Agar left/top burchakni ko'rsatsa, transform kerak emas
+                if (nameCoords.textAlign === 'right') {
+                    nameElement.style.transform = 'translateX(-100%)'; // O'ng tomonga yopishish uchun
+                } else if (nameCoords.textAlign === 'center') {
+                    nameElement.style.transform = 'translateX(-50%)'; // Markazlash uchun
+                }
+            }
+
+
+            // Rangiga qarab fon yoki chegara berish (ixtiyoriy)
+            nameElement.style.borderColor = player.color;
+            // nameElement.style.backgroundColor = player.color; // Agar shaffof fon o'rniga rangli fon kerak bo'lsa
+            
+            gameBoardContainer.appendChild(nameElement);
+        }
     });
     
-    // Bir xil pozitsiyadagi toshlarni guruhlash (keyinchalik ofset uchun)
+    // TOSHLARNI CHIZISH (mavjud kodingiz)
     const positionsMap = new Map();
     piecesToDraw.forEach(p => {
-        if (p.position === null || p.position === undefined) return; // Pozitsiyasi yo'q toshlarni chizmaymiz
+        if (p.position === null || p.position === undefined) return;
         if (!positionsMap.has(p.position)) {
             positionsMap.set(p.position, []);
         }
         positionsMap.get(p.position).push(p);
     });
 
-
     piecesToDraw.forEach(pieceData => {
         const pieceElement = document.createElement('div');
         pieceElement.classList.add('piece-on-board');
         if (pieceData.playerColor) {
-            pieceElement.classList.add(`piece-color-${pieceData.playerColor}`); // e.g., piece-color-red
-            // Yoki to'g'ridan-to'g'ri style.backgroundColor = pieceData.playerColor;
             pieceElement.style.backgroundColor = pieceData.playerColor;
         }
 
-        // pieceElement.textContent = pieceData.id; // Tosh ID sini ko'rsatish (ixtiyoriy)
         pieceElement.dataset.pieceId = pieceData.id;
         pieceElement.dataset.ownerId = pieceData.player_id;
 
@@ -371,9 +478,8 @@ function drawGameBoardAndPieces(gameState) {
         let finalLeft = stylePos.left;
         let finalTop = stylePos.top;
 
-        // Bir xil pozitsiyadagi toshlar uchun ofset
         const piecesInSameCell = positionsMap.get(pieceData.position) || [];
-        if (piecesInSameCell.length > 1) {
+        if (piecesInSameCell.length > 1 && stylePos.display !== 'none') { // Faqat ko'rinadigan toshlar uchun ofset
             const pieceIndexInCell = piecesInSameCell.findIndex(p => p.id === pieceData.id && p.player_id === pieceData.player_id);
             const { dxPercent, dyPercent } = calculateOffsetForStackedPieces(piecesInSameCell.length, pieceIndexInCell);
             
