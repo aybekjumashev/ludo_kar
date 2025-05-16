@@ -148,7 +148,7 @@ async function registerOrGetGameInfo() {
     } catch (error) {
         console.error("registerOrGetGameInfo funksiyasida umumiy xatolik:", error);
         gameStatusDisplay.textContent = "Aloqa xatoligi";
-        systemMessageDisplay.textContent = `Tizim xatoligi: ${error.message}. Sahifani yangilang.`;
+        systemMessageDisplay.textContent = `Tizim xatoligi: ${error}. Sahifani yangilang.`;
         tg.showAlert(`Server bilan bog'lanishda xatolik: ${error.message}`);
     }
 }
