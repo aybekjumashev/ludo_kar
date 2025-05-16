@@ -425,8 +425,8 @@ function drawBoardElements(gameState) {
             
             // Ismni qisqartirish (agar juda uzun bo'lsa)
             let displayName = player.first_name;
-            if (displayName.length > 10) { // Masalan, 10 belgidan uzun bo'lsa
-                displayName = displayName.substring(0, 8) + "..";
+            if (displayName.length > 20) { // Masalan, 10 belgidan uzun bo'lsa
+                displayName = displayName.substring(0, 18) + "..";
             }
             nameElement.textContent = displayName;
             
