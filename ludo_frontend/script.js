@@ -25,10 +25,10 @@ const API_BASE_URL = 'http://127.0.0.1:8000'; // Sizning backend manzilingiz
 const WS_BASE_URL = 'ws://127.0.0.1:8000';  // Sizning WebSocket manzilingiz
 
 const playerNameCoordinatesPercent = {
-    red:    { top: '95%', left: '80%', textAlign: 'center' },  // Pastki o'ng burchak
-    green:  { top: '95%', left: '20%', textAlign: 'center' },   // Pastki chap burchak
-    yellow: { top: '0.4%', left: '20%', textAlign: 'center' },    // Yuqori chap burchak
-    blue:   { top: '0.4%', left: '80%', textAlign: 'center' }    // Yuqori o'ng burchak
+    red:    { top: '96%', left: '80%', textAlign: 'center' },  // Pastki o'ng burchak
+    green:  { top: '96%', left: '20%', textAlign: 'center' },   // Pastki chap burchak
+    yellow: { top: '0.5%', left: '20%', textAlign: 'center' },    // Yuqori chap burchak
+    blue:   { top: '0.5%', left: '80%', textAlign: 'center' }    // Yuqori o'ng burchak
 };
 
 // --- postoimg.py dan `kor` lug'ati va doska o'lchamlari ---
