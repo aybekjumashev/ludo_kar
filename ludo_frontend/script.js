@@ -117,6 +117,7 @@ async function registerOrGetGameInfo() {
                 // username: tg.initDataUnsafe?.user?.username // Agar backendda kerak bo'lsa
             }),
         });
+        console.log(response)
 
         const responseData = await response.json();
 
