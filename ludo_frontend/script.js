@@ -105,6 +105,7 @@ async function registerOrGetGameInfo() {
 
     gameStatusDisplay.textContent = "O'yinga qo'shilmoqda...";
     systemMessageDisplay.textContent = "";
+    console.log(currentGameId, currentUserId, currentUsername)
 
     try {
         console.log(`O'yin ${currentGameId} ga o'yinchi ${currentUserId} (${currentUsername}) ni ro'yxatdan o'tkazish/ma'lumot olish...`);
