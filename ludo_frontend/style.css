@@ -1,7 +1,7 @@
 body {
     font-family: sans-serif;
     margin: 0;
-    padding: 10px;
+    padding: 0;
     background-color: #f0f0f0;
     color: #333;
     display: flex;
@@ -139,7 +139,7 @@ header, footer {
 
 .player-name-on-board {
     position: absolute;
-    background-color: rgba(0, 0, 0, 0.5); /* Yarim shaffof fon */
+    background-color: rgba(0, 0, 0, 0.3); /* Yarim shaffof fon */
     color: white;
     padding: 2px 5px;
     border-radius: 3px;
