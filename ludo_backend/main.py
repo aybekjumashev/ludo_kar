@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Set
 import datetime
 import json
+import httpx 
 from starlette.websockets import WebSocketState
 from fastapi.middleware.cors import CORSMiddleware # <--- BUNI QO'SHING
 
@@ -14,6 +15,10 @@ from game_logic import LudoGame, LudoPlayer, PieceColor # game_logic.py dan impo
 # --- Pydantic Modellar (avvalgi kabi, lekin LudoGame bilan sinxronlash uchun ba'zi o'zgarishlar bo'lishi mumkin) ---
 # Hozircha Pydantic GameBase ni saqlab qolamiz, u API javoblari uchun ishlatiladi.
 # LudoGame esa o'yinning ichki logikasini boshqaradi.
+
+
+BOT_TOKEN = "8033028557:AAHWfw4fv9_8DJ5I0tJRqoV0FHjTWeywX5o"
+MINI_APP_BASE_URL = "https://t.me/ludo_demo_bot/ludo/"
 
 class BotNewGameRequest(BaseModel):
     chat_id: int
@@ -132,6 +137,9 @@ app.add_middleware(
 ) # <--- BUNI QO'SHING (app = FastAPI(...) dan KEYIN)
 
 
+
+
+
 # --- Helper funksiya: LudoGame obyektini API javobiga moslashtirish ---
 def convert_ludo_game_to_api_response(ludo_game: LudoGame) -> GameBaseAPI:
     api_players = []
@@ -185,13 +193,16 @@ async def get_game_details_endpoint(game_id: str = Path(..., description="O'yinn
     return convert_ludo_game_to_api_response(ludo_game)
 
 @app.post("/games/{game_id}/register", response_model=GameBaseAPI, tags=["Players"])
-async def register_player_for_game_endpoint(
-    game_id: str = Path(..., description="O'yinning unikal IDsi"),
-    player_data: PlayerCreate = Body(...)
-):
+async def register_player_for_game_endpoint(game_id: str = Path(..., description="O'yinning unikal IDsi"), player_data: PlayerCreate = Body(...)):
     ludo_game = active_ludo_games.get(game_id)
     if not ludo_game:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"O'yin {game_id} topilmadi")
+
+    print(player_data.user_id)
+    if player_data.user_id in ludo_game.players:
+        print('aaa')
+        game_state_for_api = convert_ludo_game_to_api_response(ludo_game)
+        return game_state_for_api
 
     if ludo_game.game_status != "registering":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bu o'yinga ro'yxatdan o'tish yakunlangan yoki bekor qilingan.")

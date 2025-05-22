@@ -10,47 +10,28 @@
 </head>
 <body>
     <div id="app-container">
-        <header>
-            <h1>LudoKing</h1>
-            <div id="game-info">
-                <p>O'yin ID: <span id="game-id-display">-</span></p>
-                <p>Status: <span id="game-status-display">Yuklanmoqda...</span></p>
-                <p>Sizning ID: <span id="user-id-display">-</span></p>
-            </div>
-        </header>
-
         <main>
-            <!-- <div id="players-list-container">
-                <h2>O'yinchilar:</h2>
-                <ul id="players-list">
-                </ul>
-            </div> -->
-
             <div id="game-board-container">
                 <div id="players-list-container">
                     <ul id="players-list">
                     </ul>
                 </div>
-                <!-- O'yin maydoni (hozircha bo'sh) -->
             </div>
 
             <div id="controls-container">
                 <div id="dice-area">
-                    <p>Zar: <span id="dice-value-display">-</span></p>
-                    <button id="roll-dice-button" disabled>Zar Tashlash</button>
+                    <p style="text-align: center;"><span id="dice-value-display"></span></p>
+                    <button id="roll-dice-button" disabled>🎲</button>
                 </div>
                 <div id="turn-info">
-                    Navbat: <span id="current-turn-player-display">-</span>
+                    <span id="current-turn-player-display"></span>
                 </div>
-                 <div id="message-area">
-                    <p id="system-message"></p>
+                <div id="message-area">
+                    <span id="system-message">Oyın 4 adam jiynalǵannan soń baslanadı.</span>
                 </div>
             </div>
         </main>
 
-        <footer>
-            <p>© 2023 LudoKing</p>
-        </footer>
     </div>
 
     <script src="script.js"></script>

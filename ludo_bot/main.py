@@ -53,36 +53,31 @@ async def new_game_command_handler(message: types.Message):
             mini_app_url = f"{MINI_APP_BASE_URL}?startapp={game_id}"
             
             builder = InlineKeyboardBuilder()
-            builder.button(text="🏆 O'yinga qo'shilish", url=mini_app_url)
+            builder.button(text="KIRIW", url=mini_app_url)
             # Mini App tugmasi uchun: web_app=WebAppInfo(url=mini_app_url)
             # builder.button(text="🏆 O'yinga qo'shilish", web_app=types.WebAppInfo(url=mini_app_url))
 
 
             sent_message = await message.answer(
-                f"🎲 Yangi Ludo o'yiniga qabul boshlandi!\n\n"
-                f"Xost: {host_first_name}\n"
-                f"O'yinchilar ro'yxati bo'sh.\n\n"
-                f"Qo'shilish uchun tugmani bosing.",
-                reply_markup=builder.as_markup()
+                f"<b>🎲 JAŃA OYÍN №{message.message_id}</b>",
+                reply_markup=builder.as_markup(),
+                parse_mode='HTML'
             )
-            
             # Xabar ID sini serverga yuborish
             message_id_payload = {
                 "game_id": game_id,
                 "message_id": sent_message.message_id
             }
             await client.post(f"{API_SERVER_URL}/bot/set_message_id", json=message_id_payload)
+            await message.delete()
             # Bu so'rovning javobini tekshirish ham mumkin
 
     except httpx.HTTPStatusError as e:
         print(f"Server bilan bog'lanishda HTTP xatoligi: {e.response.status_code} - {e.response.text}")
-        await message.reply(f"O'yin serveri bilan bog'lanishda xatolik: {e.response.status_code}. Keyinroq urinib ko'ring.")
     except httpx.RequestError as e:
         print(f"Serverga so'rov yuborishda xatolik: {e}")
-        await message.reply("O'yin serveriga ulanib bo'lmadi. Server ishlayotganiga ishonch hosil qiling.")
     except Exception as e:
         print(f"/new_game handlerida kutilmagan xatolik: {e}")
-        await message.reply("Noma'lum xatolik yuz berdi.")
 
 # ... (qolgan bot kodlaringiz) ...
 

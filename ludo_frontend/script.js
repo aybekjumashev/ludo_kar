@@ -3,14 +3,10 @@
 const tg = window.Telegram.WebApp;
 
 // HTML Elementlari
-const gameIdDisplay = document.getElementById('game-id-display');
-const gameStatusDisplay = document.getElementById('game-status-display');
-const userIdDisplay = document.getElementById('user-id-display');
 const playersListUl = document.getElementById('players-list');
 const diceValueDisplay = document.getElementById('dice-value-display');
 const rollDiceButton = document.getElementById('roll-dice-button');
 const currentTurnPlayerDisplay = document.getElementById('current-turn-player-display');
-const systemMessageDisplay = document.getElementById('system-message');
 const gameBoardContainer = document.getElementById('game-board-container');
 
 // O'yin holati uchun global o'zgaruvchilar
@@ -25,10 +21,10 @@ const API_BASE_URL = 'http://127.0.0.1:8000'; // Sizning backend manzilingiz
 const WS_BASE_URL = 'ws://127.0.0.1:8000';  // Sizning WebSocket manzilingiz
 
 const playerNameCoordinatesPercent = {
-    red:    { top: '96%', left: '80%', textAlign: 'center' },  // Pastki o'ng burchak
-    green:  { top: '96%', left: '20%', textAlign: 'center' },   // Pastki chap burchak
-    yellow: { top: '0.5%', left: '20%', textAlign: 'center' },    // Yuqori chap burchak
-    blue:   { top: '0.5%', left: '80%', textAlign: 'center' }    // Yuqori o'ng burchak
+    red:    { top: '95.7%', left: '20%', textAlign: 'center' },  
+    green:  { top: '0.5%', left: '20%', textAlign: 'center' }, 
+    yellow: { top: '0.5%', left: '80%', textAlign: 'center' },  
+    blue:   { top: '95.7%', left: '80%', textAlign: 'center' }   
 };
 
 // --- postoimg.py dan `kor` lug'ati va doska o'lchamlari ---
@@ -75,10 +71,8 @@ window.addEventListener('load', () => {
     if (initData && initData.user) {
         currentUserId = initData.user.id;
         currentUsername = initData.user.first_name || initData.user.username || `User ${initData.user.id}`;
-        userIdDisplay.textContent = `${currentUsername} (${currentUserId})`;
     } else {
         console.error("Foydalanuvchi ma'lumotlari topilmadi!");
-        gameStatusDisplay.textContent = "Xatolik: Foydalanuvchi ma'lumotlari yo'q.";
         tg.showAlert("Telegram foydalanuvchi ma'lumotlarini olib bo'lmadi. Iltimos, qayta urinib ko'ring.");
         return;
     }
@@ -87,10 +81,8 @@ window.addEventListener('load', () => {
     currentGameId = urlParams.get('tgWebAppStartParam'); // Bot /start buyrug'i bilan game_id ni yuboradi
 
     if (currentGameId) {
-        gameIdDisplay.textContent = currentGameId;
         registerOrGetGameInfo();
     } else {
-        gameStatusDisplay.textContent = "Xatolik: O'yin ID topilmadi.";
         console.error("URLda 'tgWebAppStartParam' orqali o'yin IDsi topilmadi. URL:", window.location.href);
         tg.showAlert("O'yin ID URL'da ko'rsatilmagan. Iltimos, bot orqali qayta kiring.");
     }
@@ -99,12 +91,9 @@ window.addEventListener('load', () => {
 async function registerOrGetGameInfo() {
     if (!currentGameId || !currentUserId) {
         console.error("registerOrGetGameInfo: currentGameId yoki currentUserId mavjud emas.");
-        gameStatusDisplay.textContent = "Xatolik: Kerakli ma'lumotlar topilmadi.";
         return;
     }
 
-    gameStatusDisplay.textContent = "O'yinga qo'shilmoqda...";
-    systemMessageDisplay.textContent = "";
     console.log(currentGameId, currentUserId, currentUsername)
 
     try {
@@ -129,9 +118,7 @@ async function registerOrGetGameInfo() {
         } else {
             console.warn(`Ro'yxatdan o'tish/ma'lumot olishda xatolik. Status: ${response.status}`, responseData);
             const detailMessage = responseData.detail || `Noma'lum server xatoligi (status: ${response.status}).`;
-            systemMessageDisplay.textContent = `Server xabari: ${detailMessage}`;
             if (response.status === 404) {
-                gameStatusDisplay.textContent = `Xatolik: O'yin (${currentGameId}) topilmadi.`;
                 tg.showAlert(`O'yin ${currentGameId} serverda topilmadi. Iltimos, bot orqali qayta urinib ko'ring.`);
                 return; // WebSocket'ga ulanmaymiz
             }
@@ -149,8 +136,6 @@ async function registerOrGetGameInfo() {
 
     } catch (error) {
         console.error("registerOrGetGameInfo funksiyasida umumiy xatolik:", error);
-        gameStatusDisplay.textContent = "Aloqa xatoligi";
-        systemMessageDisplay.textContent = `Tizim xatoligi: ${error}. Sahifani yangilang.`;
         tg.showAlert(`Server bilan bog'lanishda xatolik: ${error.message}`);
     }
 }
@@ -171,8 +156,6 @@ function connectWebSocket() {
 
     websocket.onopen = () => {
         console.log("WebSocket ulandi!");
-        gameStatusDisplay.textContent = "Ulanildi.";
-        systemMessageDisplay.textContent = `O'yin ${currentGameId} ga muvaffaqiyatli ulandingiz.`;
         // Odatda server birinchi "connection_ack" va o'yin holatini yuboradi.
     };
 
@@ -189,19 +172,15 @@ function connectWebSocket() {
 
             switch (data.type) {
                 case "connection_ack":
-                    systemMessageDisplay.textContent = data.message || "Serverga ulanildi.";
                     break;
                 case "player_joined":
-                    systemMessageDisplay.textContent = `Yangi o'yinchi qo'shildi.`;
                     break;
                 case "game_started":
                 case "game_started_manually":
-                    systemMessageDisplay.textContent = "O'yin boshlandi!";
                     break;
                 case "dice_rolled":
                     const roller = currentGameState.players[data.rolled_by_user_id];
                     const rollerName = roller ? roller.first_name : data.rolled_by_user_id;
-                    systemMessageDisplay.textContent = `${rollerName} ${data.dice_value} tashladi.`;
                     if (data.rolled_by_user_id === currentUserId) {
                         handleValidMoves(data.valid_moves || {});
                     }
@@ -209,10 +188,8 @@ function connectWebSocket() {
                 case "piece_moved":
                     // UI allaqachon game_state orqali yangilangan bo'lishi kerak.
                     // Bu yerda qo'shimcha xabar chiqarish mumkin.
-                    systemMessageDisplay.textContent = "Tosh yurildi.";
                     clearMovablePieceHighlights();
                     if (data.moved_by_user_id === currentUserId && data.can_roll_again) {
-                        systemMessageDisplay.textContent += " Siz yana zar tashlashingiz mumkin.";
                         rollDiceButton.disabled = false;
                         // Muhim: current_dice_roll ni null qilmaymiz, chunki serverda u hali ham oldingi qiymatda
                         // Lekin UI da "Zar: -" ko'rinishi uchun currentGameState ni o'zgartirish mumkin, ammo bu server bilan nomuvofiqlik keltirishi mumkin.
@@ -221,28 +198,25 @@ function connectWebSocket() {
                     }
                     break;
                 case "next_turn":
-                    systemMessageDisplay.textContent = `Navbat ${currentGameState.players[currentGameState.current_player_user_id]?.first_name || '-'} ga o'tdi.`;
                     clearMovablePieceHighlights();
                     break;
                 case "player_state_changed":
                     const changedPlayer = currentGameState.players[data.user_id];
                     const changedPlayerName = changedPlayer ? changedPlayer.first_name : data.user_id;
-                    systemMessageDisplay.textContent = `O'yinchi ${changedPlayerName} holati o'zgardi (${data.is_sleeping ? 'uxlab qoldi' : 'qaytdi'}).`;
+                    document.getElementById(`name-${data.user_id}`).textContent = document.getElementById(`name-${data.user_id}`).textContent + ` ${data.is_sleeping ? '😴' : ''}`
+
                     break;
                 case "game_finished":
                     const winner = currentGameState.players[data.winner_user_id];
                     const winnerName = winner ? winner.first_name : data.winner_user_id;
-                    systemMessageDisplay.textContent = `O'YIN TUGADI! G'olib: ${winnerName}!`;
                     rollDiceButton.disabled = true;
                     clearMovablePieceHighlights();
                     break;
                 case "error":
                     console.error("Serverdan xatolik:", data.message);
-                    systemMessageDisplay.textContent = `Xatolik: ${data.message}`;
                     // tg.showAlert(`Server xatoligi: ${data.message}`);
                     break;
                 case "info":
-                    systemMessageDisplay.textContent = data.message;
                     break;
                 default:
                     console.warn("Noma'lum WebSocket xabar turi:", data.type);
@@ -254,7 +228,6 @@ function connectWebSocket() {
 
     websocket.onclose = (event) => {
         console.log("WebSocket uzildi:", event.code, event.reason);
-        gameStatusDisplay.textContent = "Aloqa uzildi.";
         rollDiceButton.disabled = true;
         clearMovablePieceHighlights();
         // Qayta ulanish logikasi (agar kerak bo'lsa)
@@ -263,7 +236,6 @@ function connectWebSocket() {
 
     websocket.onerror = (error) => {
         console.error("WebSocket xatoligi:", error);
-        gameStatusDisplay.textContent = "WebSocket aloqasida xatolik.";
         // tg.showAlert("WebSocket aloqasida xatolik yuz berdi.");
     };
 }
@@ -275,11 +247,10 @@ function updateUIWithGameState(gameState) {
     }
     currentGameState = gameState; // Global holatni yangilash
 
-    gameStatusDisplay.textContent = gameState.status || "Noma'lum";
-    diceValueDisplay.textContent = gameState.current_dice_roll || '-';
+    diceValueDisplay.textContent = gameState.current_dice_roll || '';
 
     const currentPlayerInfo = gameState.current_player_user_id ? gameState.players[gameState.current_player_user_id] : null;
-    currentTurnPlayerDisplay.textContent = currentPlayerInfo ? `${currentPlayerInfo.first_name} (${currentPlayerInfo.user_id === currentUserId ? 'Siz' : currentPlayerInfo.user_id})` : '-';
+    currentTurnPlayerDisplay.textContent = currentPlayerInfo ? `${currentPlayerInfo.first_name} ${currentPlayerInfo.user_id === currentUserId ? '(Siz)' : ''}` : '';
 
     playersListUl.innerHTML = '';
     if (gameState.players && typeof gameState.players === 'object') {
@@ -311,7 +282,9 @@ function updateUIWithGameState(gameState) {
             playersListUl.appendChild(li);
         });
     }
-
+    if (gameState.status != 'registering') {
+        document.getElementById('message-area').style.display = 'none';
+    }
     // Zar tashlash tugmasini sozlash
     if (gameState.status === 'playing' &&
         currentPlayerInfo &&
@@ -422,6 +395,8 @@ function drawBoardElements(gameState) {
         if (player && player.color && playerNameCoordinatesPercent[player.color]) {
             const nameElement = document.createElement('div');
             nameElement.classList.add('player-name-on-board');
+            nameElement.id = `name-${player.user_id}`
+            console.log(player)
             
             // Ismni qisqartirish (agar juda uzun bo'lsa)
             let displayName = player.first_name;
@@ -548,19 +523,16 @@ function handleValidMoves(validMovesMap) { // validMovesMap: { piece_id: [new_po
     clearMovablePieceHighlights(); // Avvalgi yoritishlarni tozalash
 
     if (Object.keys(validMovesMap).length === 0 && currentGameState.current_dice_roll !== 6) {
-        systemMessageDisplay.textContent = "Yurish uchun imkoniyat yo'q.";
         // Server avtomatik navbatni o'tkazishi kerak (agar 6 bo'lmasa)
         return;
     }
     if (Object.keys(validMovesMap).length === 0 && currentGameState.current_dice_roll === 6) {
-        systemMessageDisplay.textContent = "6 tushdi, lekin yurish imkoniyati yo'q. Yana zar tashlang.";
         // Server navbatni o'tkazmasligi kerak, o'yinchi yana zar tashlaydi
         rollDiceButton.disabled = false; // Yana zar tashlash uchun tugmani yoqish
         return;
     }
 
 
-    systemMessageDisplay.textContent = "Yurish uchun toshni tanlang.";
 
     Object.keys(validMovesMap).forEach(pieceIdStr => {
         const pieceId = parseInt(pieceIdStr);
@@ -574,7 +546,6 @@ function handleValidMoves(validMovesMap) { // validMovesMap: { piece_id: [new_po
                     websocket.send(JSON.stringify({ action: "move_piece", piece_id: pieceId }));
                     clearMovablePieceHighlights();
                     rollDiceButton.disabled = true; // Yurishdan keyin zarni o'chirish
-                    systemMessageDisplay.textContent = "Yurish amalga oshirilmoqda...";
                 }
             };
         }
