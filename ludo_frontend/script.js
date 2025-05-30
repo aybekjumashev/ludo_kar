@@ -218,6 +218,13 @@ function connectWebSocket() {
                     break;
                 case "info":
                     break;
+                case "timer_update":
+                    if (data.current_player_user_id === currentGameState?.current_player_user_id) {
+                        startTurnTimer(data.turn_time_left);
+                    } else {
+                        clearTurnTimer();
+                    }
+                    break;
                 default:
                     console.warn("Noma'lum WebSocket xabar turi:", data.type);
             }
@@ -568,6 +575,45 @@ function clearMovablePieceHighlights() {
       } else {
           rollDiceButton.disabled = true;
       }
+    }
+}
+
+// Timer uchun o'zgaruvchilar va funksiyalar
+let turnTimerInterval = null;
+let turnTimeLeft = null;
+
+function startTurnTimer(seconds) {
+    clearTurnTimer();
+    turnTimeLeft = seconds;
+    updateTurnTimerDisplay();
+    turnTimerInterval = setInterval(() => {
+        if (turnTimeLeft > 0) {
+            turnTimeLeft--;
+            updateTurnTimerDisplay();
+        } else {
+            clearTurnTimer();
+        }
+    }, 1000);
+}
+
+function clearTurnTimer() {
+    if (turnTimerInterval) {
+        clearInterval(turnTimerInterval);
+        turnTimerInterval = null;
+    }
+    turnTimeLeft = null;
+    updateTurnTimerDisplay();
+}
+
+function updateTurnTimerDisplay() {
+    const timerEl = document.getElementById('turn-timer');
+    if (!timerEl) return;
+    if (turnTimeLeft !== null && turnTimeLeft >= 0) {
+        timerEl.textContent = `⏳ ${turnTimeLeft}s`;
+        timerEl.style.display = '';
+    } else {
+        timerEl.textContent = '';
+        timerEl.style.display = 'none';
     }
 }
 

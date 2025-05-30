@@ -140,6 +140,10 @@ class LudoGame:
         self.updated_at: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
         self.last_action_time: datetime.datetime = datetime.datetime.now(datetime.timezone.utc) # Navbat taymeri uchun
 
+        # Timer uchun o'zgaruvchilar
+        self.turn_time_limit_seconds: int = 30  # Har bir yurish uchun sekundlar
+        self.turn_timer_deadline: Optional[float] = None  # Unix timestamp (float)
+
     def _update_timestamp(self):
         self.updated_at = datetime.datetime.now(datetime.timezone.utc)
         self.last_action_time = self.updated_at # Har qanday muhim harakatda yangilanadi
@@ -376,6 +380,17 @@ class LudoGame:
         self.check_winner() # Har bir yurishdan keyin g'olibni tekshirish
         return True, captured_opponent, captured_opponent_color
 
+    def start_turn_timer(self):
+        import time
+        self.turn_timer_deadline = time.time() + self.turn_time_limit_seconds
+
+    def get_turn_time_left(self) -> Optional[int]:
+        import time
+        if self.turn_timer_deadline is None:
+            return None
+        left = int(self.turn_timer_deadline - time.time())
+        return max(left, 0)
+
     def next_turn(self):
         if not self.player_order or self.game_status != "playing":
             return
@@ -401,8 +416,8 @@ class LudoGame:
         
         # player_order dagi asl indeksini topish
         self.current_player_index = self.player_order.index(next_player_user_id)
-        
-        self.current_dice_roll = None # Yangi navbatda zar qiymati nolga tenglashadi
+        self.current_dice_roll = None
+        self.start_turn_timer()  # Navbat boshlanganda timer boshlanadi
         new_turn_player = self.get_current_player()
         print(f"Navbat o'tdi. Endi {new_turn_player.user_id if new_turn_player else 'N/A'} ning navbati.")
         self._update_timestamp()
@@ -416,7 +431,7 @@ class LudoGame:
                 if self.winner_user_id is None: # Bu faqat bir marta o'rnatilishi kerak
                     self.winner_user_id = player_id
                     self.game_status = "finished"
-                    print(f"G'olib allaqachon belgilangan: {player_id}")
+                    print(f"G'olib allaqon belgilangan: {player_id}")
                 # Agar bir nechta o'yinchi bir vaqtda yutsa (kamdan-kam), logikani kengaytirish mumkin
                 continue
 
@@ -441,7 +456,7 @@ class LudoGame:
     def get_game_state(self) -> dict:
         """O'yinning joriy holatini dict ko'rinishida qaytaradi (klientga yuborish uchun)"""
         current_player = self.get_current_player()
-        return {
+        state = {
             "game_id": self.game_id,
             "status": self.game_status,
             "players": {uid: p.to_dict() for uid, p in self.players.items()},
@@ -454,8 +469,10 @@ class LudoGame:
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "chat_id": self.chat_id, # <--- YANGI: Frontend yoki bot uchun
-            "message_id": self.message_id # <--- YANGI: Frontend yoki bot uchun
+            "message_id": self.message_id, # <--- YANGI: Frontend yoki bot uchun
+            'turn_time_left': self.get_turn_time_left(),
         }
+        return state
 
     def set_player_sleep_status(self, player_id: int, is_sleeping: bool):
         player = self.players.get(player_id)
@@ -533,10 +550,7 @@ if __name__ == '__main__':
         print(f"Valining holati: {game.players[200]}")
         
         # Alining navbati (agar avvalgi navbat Alida bo'lsa va u 6 tashlamagan bo'lsa)
-        # Agar Alining navbati bo'lsa va u yurgan bo'lsa, keyingi navbat Valiga kelishi kerak edi,
-        # lekin Vali uxlayapti, shuning uchun navbat yana Aliga (yoki boshqa aktiv o'yinchiga) o'tishi kerak.
-        
-        # Agar hozir Alining navbati bo'lsa, u yursin.
+        # Agar Alining navbati bo'lsa, u yursin.
         if game.get_current_player().user_id == 100:
             game.current_dice_roll = 2
             valid_moves_ali_sleep = game.get_valid_moves(100)

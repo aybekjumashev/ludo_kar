@@ -151,4 +151,13 @@ header, footer {
     /* transform: translate(-50%, -50%); Buni o'rniga to'g'ridan-to'g'ri left/top ni ishlatamiz */
 }
 
+#turn-timer {
+    font-size: 1.1em;
+    color: #d9534f;
+    font-weight: bold;
+    margin-left: 8px;
+    display: none;
+    transition: color 0.2s;
+}
+
 
