@@ -150,7 +150,7 @@ class LudoGame:
 
     def add_player(self, user_id: int, first_name: str) -> bool:
         if user_id in self.players:
-            print(f"O'yinchi {user_id} allaqachon o'yinda.")
+            print(f"O'yinchi {user_id} allaqon o'yinda.")
             return True # Yoki False, agar qayta qo'shilishni cheklamoqchi bo'lsangiz
         if len(self.players) >= self.max_players:
             print("O'yin to'lgan, yangi o'yinchi qo'shib bo'lmaydi.")
@@ -174,7 +174,7 @@ class LudoGame:
             print(f"O'yinni boshlash uchun yetarli o'yinchi yo'q (kerak: {self.min_players_to_start}, mavjud: {len(self.players)}).")
             return False
         if self.game_status == "playing":
-            print("O'yin allaqachon boshlangan.")
+            print("O'yin allaqon boshlangan.")
             return False # Yoki True, agar bu chaqiruv zararsiz bo'lsa
 
         self.game_status = "playing"
@@ -391,35 +391,25 @@ class LudoGame:
         left = int(self.turn_timer_deadline - time.time())
         return max(left, 0)
 
-    def next_turn(self):
-        if not self.player_order or self.game_status != "playing":
-            return
+    def next_turn(self) -> None:
+        """O'yin navbatini keyingi o'yinchiga o'tkazadi"""
+        self._reset_current_dice_roll()
         
-        active_player_ids = [uid for uid in self.player_order if self.players[uid] and not self.players[uid].is_sleeping]
-        if not active_player_ids:
-            print("Faol o'yinchilar qolmadi, navbatni o'tkazib bo'lmaydi.")
-            # Bu yerda o'yinni to'xtatish yoki boshqa logika kerak bo'lishi mumkin
-            return
+        if not self.current_turn_color:
+            # O'yin endi boshlangan. Birinchi navbat random
+            self.current_turn_color = random.choice(list(self.active_player_colors))
+        else:
+            # Keyingi rangni top
+            current_color_index = list(PieceColor).index(self.current_turn_color)
+            for _ in range(4):  # Maximum 4 ta rang bor
+                current_color_index = (current_color_index + 1) % len(PieceColor)
+                next_color = list(PieceColor)[current_color_index]
+                if next_color in self.active_player_colors:
+                    self.current_turn_color = next_color
+                    break
 
-        # Joriy o'yinchining aktivlar ro'yxatidagi indeksini topish
-        try:
-            current_active_player_list_index = active_player_ids.index(self.player_order[self.current_player_index])
-        except ValueError: # Agar joriy o'yinchi uxlayotgan bo'lsa va aktivlar ro'yxatida bo'lmasa
-            # Keyingi aktiv o'yinchini topishga harakat qilamiz
-            # Bu holat murakkab, yaxshisi joriy o'yinchining navbati kelganda uxlayotgan bo'lsa,
-            # darhol navbatni o'tkazish kerak.
-            # Hozircha, agar joriy o'yinchi aktivlar ro'yxatida bo'lmasa, birinchisidan boshlaymiz.
-             current_active_player_list_index = -1 # Bu keyingi hisoblashda 0 ga aylanadi
-
-        next_active_player_list_index = (current_active_player_list_index + 1) % len(active_player_ids)
-        next_player_user_id = active_player_ids[next_active_player_list_index]
-        
-        # player_order dagi asl indeksini topish
-        self.current_player_index = self.player_order.index(next_player_user_id)
-        self.current_dice_roll = None
-        self.start_turn_timer()  # Navbat boshlanganda timer boshlanadi
-        new_turn_player = self.get_current_player()
-        print(f"Navbat o'tdi. Endi {new_turn_player.user_id if new_turn_player else 'N/A'} ning navbati.")
+        # Reset and start the turn timer
+        self.start_turn_timer()
         self._update_timestamp()
 
     def check_winner(self) -> bool:
@@ -427,7 +417,7 @@ class LudoGame:
             return True
 
         for player_id, player in self.players.items():
-            if player.has_finished_all_pieces: # Agar allaqachon yutgan bo'lsa
+            if player.has_finished_all_pieces: # Agar allaqon yutgan bo'lsa
                 if self.winner_user_id is None: # Bu faqat bir marta o'rnatilishi kerak
                     self.winner_user_id = player_id
                     self.game_status = "finished"
@@ -468,9 +458,10 @@ class LudoGame:
             "max_players": self.max_players,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
-            "chat_id": self.chat_id, # <--- YANGI: Frontend yoki bot uchun
-            "message_id": self.message_id, # <--- YANGI: Frontend yoki bot uchun
-            'turn_time_left': self.get_turn_time_left(),
+            "chat_id": self.chat_id,
+            "message_id": self.message_id,
+            "turn_time_left": self.get_turn_time_left(),
+            "turn_time_limit": self.turn_time_limit_seconds
         }
         return state
 

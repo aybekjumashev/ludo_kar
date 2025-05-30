@@ -218,6 +218,13 @@ function connectWebSocket() {
                     break;
                 case "info":
                     break;
+                case "turn_timeout":
+                    const timeoutPlayer = currentGameState.players[data.user_id];
+                    clearMovablePieceHighlights();
+                    if (timeoutPlayer) {
+                        console.log(`${timeoutPlayer.first_name} ning vaqti tugadi`);
+                    }
+                    break;
                 case "timer_update":
                     if (data.current_player_user_id === currentGameState?.current_player_user_id) {
                         startTurnTimer(data.turn_time_left);
@@ -592,6 +599,10 @@ function startTurnTimer(seconds) {
             updateTurnTimerDisplay();
         } else {
             clearTurnTimer();
+            // Send turn timeout notification to server
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(JSON.stringify({ action: "turn_timeout" }));
+            }
         }
     }, 1000);
 }

@@ -10,26 +10,18 @@ from starlette.websockets import WebSocketState
 from fastapi.middleware.cors import CORSMiddleware # <--- BUNI QO'SHING
 
 # --- Yangi importlar ---
-from .game_logic import LudoGame, LudoPlayer, PieceColor # game_logic.py dan import
+from .game_logic import LudoGame, LudoPlayer, PieceColor
 
-# --- Pydantic Modellar (avvalgi kabi, lekin LudoGame bilan sinxronlash uchun ba'zi o'zgarishlar bo'lishi mumkin) ---
-# Hozircha Pydantic GameBase ni saqlab qolamiz, u API javoblari uchun ishlatiladi.
-# LudoGame esa o'yinning ichki logikasini boshqaradi.
-
-
-BOT_TOKEN = "8033028557:AAHWfw4fv9_8DJ5I0tJRqoV0FHjTWeywX5o"
-MINI_APP_BASE_URL = "https://t.me/ludo_demo_bot/ludo"
-
+# --- Pydantic Modellar ---
 class BotNewGameRequest(BaseModel):
     chat_id: int
     host_user_id: int
     host_first_name: str
-    # host_username: Optional[str] = None # Agar kerak bo'lsa
 
 class BotNewGameResponse(BaseModel):
     game_id: str
-    chat_id: int # Botga qaytarish uchun qulaylik
-    host_id: int # Botga qaytarish uchun qulaylik
+    chat_id: int
+    host_id: int
 
 class BotSetMessageIdRequest(BaseModel):
     game_id: str
@@ -170,9 +162,14 @@ def convert_ludo_game_to_api_response(ludo_game: LudoGame) -> GameBaseAPI:
 @app.post("/games", response_model=GameBaseAPI, status_code=status.HTTP_201_CREATED, tags=["Games"])
 async def create_new_game_endpoint(new_game_data: NewGameInfo = Body(...)):
     game_id = str(uuid.uuid4())
+    chat_id = 0  # Mini App orqali yaratilgan o'yinlar uchun chat_id = 0
     
     # LudoGame obyektini yaratish
-    ludo_game_instance = LudoGame(game_id=game_id, host_id=new_game_data.host_user_id)
+    ludo_game_instance = LudoGame(
+        game_id=game_id, 
+        host_id=new_game_data.host_user_id,
+        chat_id=chat_id
+    )
     # Xostni LudoGame ga qo'shish
     ludo_game_instance.add_player(user_id=new_game_data.host_user_id, first_name=new_game_data.host_first_name)
     
@@ -286,6 +283,43 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, user_id: int):
             game_id
         )
 
+    # Timer update background task
+    async def send_timer_updates():
+        while True:
+            try:
+                if ludo_game.game_status == "playing":
+                    current_player = ludo_game.get_current_player()
+                    if current_player:
+                        time_left = ludo_game.get_turn_time_left()
+                        if time_left is not None:
+                            await manager.broadcast_to_game(
+                                {
+                                    "type": "timer_update",
+                                    "current_player_user_id": current_player.user_id,
+                                    "turn_time_left": time_left,
+                                    "game_state": ludo_game.get_game_state()
+                                },
+                                game_id
+                            )
+                            # If time is up, trigger automatic turn change
+                            if time_left <= 0:
+                                if current_player.user_id == user_id:  # Only one client should trigger this
+                                    ludo_game.next_turn()
+                                    await manager.broadcast_to_game(
+                                        {
+                                            "type": "turn_timeout",
+                                            "user_id": current_player.user_id,
+                                            "game_state": ludo_game.get_game_state()
+                                        },
+                                        game_id
+                                    )
+            except Exception as e:
+                print(f"Timer update error: {e}")
+            await asyncio.sleep(1)  # Update every second
+
+    # Start timer update task
+    timer_task = asyncio.create_task(send_timer_updates())
+    
     try:
         await manager.send_personal_message(
             {"type": "connection_ack", 
@@ -307,8 +341,22 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, user_id: int):
                     continue
 
                 current_turn_player = ludo_game.get_current_player()
-                if not current_turn_player: # Bu holat bo'lmasligi kerak, agar game_status="playing" bo'lsa
+                if not current_turn_player:
                     await manager.send_personal_message({"type": "error", "message": "Joriy navbatdagi o'yinchi topilmadi."}, websocket)
+                    continue
+
+                # Handle turn timeout
+                if action_type == "turn_timeout":
+                    if current_turn_player.user_id == user_id:
+                        ludo_game.next_turn()
+                        await manager.broadcast_to_game(
+                            {
+                                "type": "turn_timeout",
+                                "user_id": user_id,
+                                "game_state": ludo_game.get_game_state()
+                            },
+                            game_id
+                        )
                     continue
 
                 # -------- O'YIN LOGIKASI BILAN BOG'LIQ HARAKATLAR --------
@@ -427,5 +475,57 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, user_id: int):
                              "message": f"Tosh {piece_id_to_move} ni yurib bo'lmadi. Mumkin bo'lgan yurishlarni tekshiring."}, 
                             websocket
                         )
-                        # Agar yurish amalga oshmasa, klientga qayta `valid_moves` yuborish mumkin
-                        # yoki shunchali
+            except json.JSONDecodeError:
+                await manager.send_personal_message({"type": "error", "message": "Noto'g'ri JSON format."}, websocket)
+            except Exception as e:
+                print(f"XATOLIK (WebSocket xabariga ishlov berishda, o'yin {game_id}, foydalanuvchi {user_id}): {type(e).__name__} - {e}")
+                import traceback
+                traceback.print_exc()
+                await manager.send_personal_message({"type": "error", "message": f"Serverda kutilmagan xatolik: {type(e).__name__}"}, websocket)
+
+    except WebSocketDisconnect:
+        timer_task.cancel()  # Cancel timer task on disconnect
+        manager.disconnect(websocket, game_id)
+        if ludo_game and user_id in ludo_game.players:
+            ludo_game.players[user_id].is_sleeping = True
+            ludo_game.updated_at = datetime.datetime.now(datetime.timezone.utc)
+            print(f"O'yinchi {user_id} o'yin {game_id} dan uzildi (sleep rejimiga o'tdi).")
+            await manager.broadcast_to_game(
+                {"type": "player_state_changed", 
+                "user_id": user_id, 
+                "is_sleeping": True,
+                "game_state": ludo_game.get_game_state()},
+                game_id
+            )
+
+@app.post("/bot/new_game", response_model=BotNewGameResponse, tags=["Bot"])
+async def bot_new_game_endpoint(request: BotNewGameRequest = Body(...)):
+    game_id = str(uuid.uuid4())
+    
+    # LudoGame obyektini yaratish (chat_id qo'shildi)
+    ludo_game_instance = LudoGame(
+        game_id=game_id, 
+        host_id=request.host_user_id,
+        chat_id=request.chat_id
+    )
+    # Xostni LudoGame ga qo'shish
+    ludo_game_instance.add_player(user_id=request.host_user_id, first_name=request.host_first_name)
+    
+    active_ludo_games[game_id] = ludo_game_instance
+    print(f"Bot orqali yangi Ludo o'yini yaratildi: {game_id}, Xost: {request.host_user_id}, Chat: {request.chat_id}")
+    
+    return BotNewGameResponse(
+        game_id=game_id,
+        chat_id=request.chat_id,
+        host_id=request.host_user_id
+    )
+
+@app.post("/bot/set_message_id", tags=["Bot"])
+async def bot_set_message_id_endpoint(request: BotSetMessageIdRequest = Body(...)):
+    ludo_game = active_ludo_games.get(request.game_id)
+    if not ludo_game:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"O'yin {request.game_id} topilmadi")
+    
+    # Bot xabar ID sini saqlash logikasi
+    # Hozircha bu ma'lumot backend'da ishlatilmayapti
+    return {"status": "success"}
