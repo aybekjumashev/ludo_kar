@@ -4,6 +4,7 @@ import httpx # HTTP so'rovlari uchun (yoki requests)
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import WebAppInfo
 
 BOT_TOKEN = "8033028557:AAHWfw4fv9_8DJ5I0tJRqoV0FHjTWeywX5o"
 API_SERVER_URL = "http://localhost:8000" # Sizning FastAPI serveringiz manzili

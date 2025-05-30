@@ -10,7 +10,7 @@ from starlette.websockets import WebSocketState
 from fastapi.middleware.cors import CORSMiddleware # <--- BUNI QO'SHING
 
 # --- Yangi importlar ---
-from game_logic import LudoGame, LudoPlayer, PieceColor # game_logic.py dan import
+from .game_logic import LudoGame, LudoPlayer, PieceColor # game_logic.py dan import
 
 # --- Pydantic Modellar (avvalgi kabi, lekin LudoGame bilan sinxronlash uchun ba'zi o'zgarishlar bo'lishi mumkin) ---
 # Hozircha Pydantic GameBase ni saqlab qolamiz, u API javoblari uchun ishlatiladi.
