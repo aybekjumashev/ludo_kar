@@ -18,7 +18,7 @@ let currentGameState = null; // Backenddan keladigan to'liq o'yin holati
 
 // Backend API va WebSocket manzillari (o'zgartiring!)
 const API_BASE_URL = 'https://f1c6-84-54-83-142.ngrok-free.app'; // Sizning backend manzilingiz
-const WS_BASE_URL = 'ws://f1c6-84-54-83-142.ngrok-free.app';  // Sizning WebSocket manzilingiz
+const WS_BASE_URL = 'wss://f1c6-84-54-83-142.ngrok-free.app';  // Sizning WebSocket manzilingiz
 
 const playerNameCoordinatesPercent = {
     red:    { top: '95.7%', left: '20%', textAlign: 'center' },  
