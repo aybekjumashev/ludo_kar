@@ -152,30 +152,3 @@ header, footer {
 }
 
 
-/* style.css */
-#dice-animation-overlay {
-    display: none;
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    z-index: 100;
-    justify-content: center;
-    align-items: center;
-    background: rgba(0,0,0,0.2);
-}
-#dice-animation {
-    width: 120px; height: 120px;
-    background: white;
-    border-radius: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 80px;
-    box-shadow: 0 0 20px #0004;
-    animation: dice-bounce 0.6s cubic-bezier(.68,-0.55,.27,1.55);
-}
-@keyframes dice-bounce {
-    0% { transform: scale(0.5) rotate(-90deg);}
-    60% { transform: scale(1.2) rotate(20deg);}
-    100% { transform: scale(1) rotate(0);}
-}
