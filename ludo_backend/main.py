@@ -18,7 +18,7 @@ from .game_logic import LudoGame, LudoPlayer, PieceColor # game_logic.py dan imp
 
 
 BOT_TOKEN = "8033028557:AAHWfw4fv9_8DJ5I0tJRqoV0FHjTWeywX5o"
-MINI_APP_BASE_URL = "https://t.me/ludo_demo_bot/ludo/"
+MINI_APP_BASE_URL = "https://t.me/ludo_demo_bot/ludo"
 
 class BotNewGameRequest(BaseModel):
     chat_id: int

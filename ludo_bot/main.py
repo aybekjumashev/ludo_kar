@@ -8,7 +8,7 @@ from aiogram.types import WebAppInfo
 
 BOT_TOKEN = "8033028557:AAHWfw4fv9_8DJ5I0tJRqoV0FHjTWeywX5o"
 API_SERVER_URL = "http://localhost:8000" # Sizning FastAPI serveringiz manzili
-MINI_APP_BASE_URL = "https://t.me/ludo_demo_bot/ludo/" # Sizning Mini App manzilingiz
+MINI_APP_BASE_URL = "https://t.me/ludo_demo_bot/ludo" # Sizning Mini App manzilingiz
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
