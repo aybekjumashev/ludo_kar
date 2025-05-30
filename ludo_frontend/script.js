@@ -62,6 +62,27 @@ for (const key in korBackend) {
 // --- Tugadi: postoimg.py dan `kor` lug'ati ---
 
 
+// Zar animatsiyasini ko'rsatish funksiyasi
+function showDiceAnimation(diceValue) {
+    const overlay = document.getElementById('dice-animation-overlay');
+    const diceDiv = document.getElementById('dice-animation');
+    if (!overlay || !diceDiv) return;
+
+    // Zar raqamini yoki emoji ko'rsatish
+    const diceEmojis = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+    diceDiv.textContent = diceEmojis[diceValue] || diceValue;
+
+    overlay.style.display = 'flex';
+    diceDiv.style.animation = 'none';
+    // Reflow uchun
+    void diceDiv.offsetWidth;
+    diceDiv.style.animation = null;
+
+    setTimeout(() => {
+        overlay.style.display = 'none';
+    }, 1200); // 1.2 sekunddan so'ng yashirish
+}
+
 // Mini App ishga tushganda
 window.addEventListener('load', () => {
     tg.ready();
@@ -179,6 +200,17 @@ function connectWebSocket() {
                 case "game_started_manually":
                     break;
                 case "dice_rolled":
+                    if (typeof data.dice_value === "number" && data.dice_value > 0) {
+                        showDiceAnimation(data.dice_value);
+                    } else if (typeof data.dice_value === "number") {
+                        showDiceAnimation(data.dice_value);
+                    } else if (typeof data.dice === "number") {
+                        showDiceAnimation(data.dice);
+                    } else if (typeof data.dice_value === "string") {
+                        showDiceAnimation(Number(data.dice_value));
+                    } else if (typeof data.dice === "string") {
+                        showDiceAnimation(Number(data.dice));
+                    }
                     const roller = currentGameState.players[data.rolled_by_user_id];
                     const rollerName = roller ? roller.first_name : data.rolled_by_user_id;
                     if (data.rolled_by_user_id === currentUserId) {
@@ -373,6 +405,9 @@ rollDiceButton.addEventListener('click', () => {
 //         gameBoardContainer.appendChild(pieceElement);
 //     });
 // }
+
+
+
 
 
 function drawBoardElements(gameState) {
